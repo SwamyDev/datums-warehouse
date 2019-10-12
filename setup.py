@@ -20,6 +20,6 @@ setup(
     packages=find_packages(include='datums_warehouse'),
     include_package_data=True,
     zip_safe=False,
-    install_requires=['flask', 'werkzeug'],
+    install_requires=['flask', 'werkzeug', 'pandas', 'numpy'],
     extras_require={"test": ["pytest", "pytest-cov"]},
 )
