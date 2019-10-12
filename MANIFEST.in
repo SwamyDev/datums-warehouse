@@ -1,0 +1,2 @@
+graft datums_warehouse/static
+global-exclude *.pyc
