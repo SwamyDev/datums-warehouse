@@ -1,5 +1,6 @@
 from flask import Flask
 
+from datums_warehouse import query_csv
 from datums_warehouse._version import __version__
 
 
@@ -14,8 +15,6 @@ def create_app(test_config=None):
     else:
         app.config.update(test_config)
 
-    @app.route("/")
-    def hello():
-        return "Hello, World!"
+    app.register_blueprint(query_csv.bp)
 
     return app
