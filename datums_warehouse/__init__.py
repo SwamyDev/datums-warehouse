@@ -1,5 +1,7 @@
 from flask import Flask
 
+from datums_warehouse._version import __version__
+
 
 def create_app(test_config=None):
     app = Flask(__name__, instance_relative_config=True)

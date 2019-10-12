@@ -1,11 +1,25 @@
+from pathlib import Path
+
 from setuptools import find_packages, setup
+
+here = Path(__file__).absolute().parent
+
+long_description = (here / Path('README.md')).read_text()
+
+_version = {}
+exec((here / Path('datums_warehouse/_version.py')).read_text(), _version)
 
 setup(
     name='datums_warehouse',
-    version='0.0.0',
+    version=_version['__version__'],
+    description='Data warehouse that provides time series data via REST API',
+    long_description=long_description,
+    long_description_content_type='text/markdown',
+    url='https://github.com/SwamyDev/datmus-warehouse',
+    author='Bernhard Raml',
     packages=find_packages(include='datums_warehouse'),
     include_package_data=True,
     zip_safe=False,
     install_requires=['flask'],
-    extras_require={"test": ["pytest", "coverage"]},
+    extras_require={"test": ["pytest", "pytest-cov"]},
 )
