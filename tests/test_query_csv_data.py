@@ -1,5 +1,5 @@
 def test_requesting_non_existent_data(query):
-    assert query.symbol("unknown").status_code == 204
+    assert "unknown" in query.symbol("unknown").json['error']
 
 
 def test_request_existing_data(query, test_sym):

@@ -44,5 +44,5 @@ def require_auth(route):
 def query_symbols(sym):
     csv = _get_data_dir() / f'csv/{sym}.csv'
     if not csv.exists():
-        return jsonify({"csv": None, "warning": f"symbol {sym} does not exist"}), 204
+        return jsonify({"csv": None, "error": f"symbol {sym} does not exist"}), 200
     return jsonify({"csv": csv.read_text()}), 200
