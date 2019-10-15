@@ -27,7 +27,7 @@ class Storage:
         return df
 
     def _maybe_prepend_existing(self, new_df, itv):
-        for file in self._directory.glob(f"{itv}__*.csv"):
+        for file in self._directory.glob(f"{itv}__*.gz"):
             prv = pd.read_csv(file)
             if self._can_concatenate(new_df, prv, itv):
                 new_df = pd.concat([prv, new_df]).drop_duplicates(subset='timestamp')\
@@ -46,8 +46,8 @@ class Storage:
     def _write_csv(self, df, itv, prv):
         first = df.timestamp.iloc[0]
         last = df.timestamp.iloc[-1]
-        file = self._directory / f"{itv}__{first}_{last}.csv"
-        df.to_csv(file, index=False)
+        file = self._directory / f"{itv}__{first}_{last}.gz"
+        df.to_csv(file, index=False, compression="infer")
         if prv is None:
             logger.info(f"creating new csv storage: {file}")
         else:
