@@ -46,7 +46,7 @@ class Storage:
     def _write_csv(self, df, itv, prv):
         first = df.timestamp.iloc[0]
         last = df.timestamp.iloc[-1]
-        file = self._directory / f"{itv}__{first}_{last}.csv"
+        file = self._directory / f"{itv}__{first}_{last}.csv"   # TODO: allow for compression
         df.to_csv(file, index=False)
         if prv is None:
             logger.info(f"creating new csv storage: {file}")
