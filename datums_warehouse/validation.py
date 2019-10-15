@@ -2,16 +2,14 @@ import numpy as np
 import pandas as pd
 
 
-def validate(csv, interval=None, exclude_outliers=None, z_score_threshold=10):
-    df = pd.read_csv(csv)
+def validate(datums, exclude_outliers=None, z_score_threshold=10):
+    df = pd.read_csv(datums.csv)
     if df.empty:
         raise DataError("no data has been found")
 
     _check_elements(df, 'missing', df.isnull())
     _check_elements(df, 'outlier', _make_outlier_mask(df, exclude_outliers or [], z_score_threshold))
-
-    if interval:
-        _check_index_interval(df, interval)
+    _check_index_interval(df, datums.interval)
 
 
 def _check_elements(df, label, elements):
