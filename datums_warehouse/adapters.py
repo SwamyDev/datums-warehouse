@@ -27,10 +27,6 @@ class KrakenAdapter:
         if self._RESULT_KEY not in raw:
             raise InvalidFormatError(f"The Kraken API response is not in an expected format:\n {raw}")
 
-    def _check_errors(self, raw):
-        if len(raw[self._ERROR_KEY]) != 0:
-            raise ResponseError(f"The Kraken API returned an error:\n {raw}")
-
     def _get_trades(self, raw):
         res = raw[self._RESULT_KEY]
         pair = one((k for k in res.keys() if k != self._LAST_KEY))

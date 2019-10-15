@@ -27,7 +27,7 @@ def test_empty_data(adapter):
     assert adapter({"error": [], "result": {"XXBTZEUR": []}}) == "timestamp,open,high,low,close,vwap,volume,count"
 
 
-@pytest.mark.parametrize("invalid", [dict(), dict(result={'pair': []}), {}])
+@pytest.mark.parametrize("invalid", [dict(), dict(result={'pair': []}), dict(error=[])])
 def test_invalid_kraken_api_format(adapter, invalid):
     with pytest.raises(InvalidFormatError):
         adapter(invalid)
