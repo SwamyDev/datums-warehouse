@@ -1,9 +1,8 @@
+import logging
 from io import StringIO
 from pathlib import Path
 
-import logging
 import pandas as pd
-
 
 logger = logging.getLogger(__name__)
 
@@ -27,13 +26,16 @@ class Storage:
         return df
 
     def _maybe_prepend_existing(self, new_df, itv):
-        for file in self._directory.glob(f"{itv}__*.gz"):
-            prv = pd.read_csv(file)
+        for prv, file in self._all_of(itv):
             if self._can_concatenate(new_df, prv, itv):
-                new_df = pd.concat([prv, new_df]).drop_duplicates(subset='timestamp')\
+                new_df = pd.concat([prv, new_df]).drop_duplicates(subset='timestamp') \
                     .reset_index(drop=True)
                 return new_df, file
         return new_df, None
+
+    def _all_of(self, interval):
+        for file in self._directory.glob(f"{interval}__*.gz"):
+            yield pd.read_csv(file), file
 
     @staticmethod
     def _can_concatenate(new_df, prv_df, itv):
@@ -52,6 +54,14 @@ class Storage:
             logger.info(f"creating new csv storage: {file}")
         else:
             prv.unlink()
+
+    def last_time_of(self, interval):
+        last_time = None
+        for df, _ in self._all_of(interval):
+            lt = df.timestamp.iloc[-1]
+            last_time = max(lt, last_time or lt)
+
+        return last_time
 
 
 class InvalidDatumError(ValueError):
