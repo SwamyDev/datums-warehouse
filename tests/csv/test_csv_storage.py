@@ -100,9 +100,27 @@ def test_delete_old_file_when_appended(storage, datum_path, make_csv_datums):
     assert not (datum_path / "1__0_2.gz").exists()
 
 
-def test_query_last_time_stamp_of_interval(storage,make_csv_datums):
+def test_query_last_time_stamp_of_interval(storage, make_csv_datums):
     storage.store(make_csv_datums(1, "timestamp,c1,c2\n0,1,1\n1,2,2\n2,3,3\n"))
     storage.store(make_csv_datums(1, "timestamp,c1,c2\n4,2,2\n5,1,1\n"))
     storage.store(make_csv_datums(30, "timestamp,c1,c2\n9,2,2\n10,1,1\n"))
     assert storage.last_time_of(interval=1) == 5
+
+
+def test_get_last_stored_csv(storage, make_csv_datums):
+    storage.store(make_csv_datums(1, "timestamp,c1,c2\n0,1,1\n1,2,2\n2,3,3\n"))
+    storage.store(make_csv_datums(1, "timestamp,c1,c2\n4,2,2\n5,1,1\n"))
+    storage.store(make_csv_datums(30, "timestamp,c1,c2\n9,2,2\n10,1,1\n"))
+    assert storage.get(interval=1) == make_csv_datums(1, "timestamp,c1,c2\n4,2,2\n5,1,1\n")
+
+
+def test_get_stored_csv_with_range(storage, make_csv_datums):
+    storage.store(make_csv_datums(1, "timestamp,c1,c2\n0,1,1\n1,2,2\n2,3,3\n"))
+    storage.store(make_csv_datums(1, "timestamp,c1,c2\n4,2,2\n5,1,1\n6,3,3\n"))
+    storage.store(make_csv_datums(30, "timestamp,c1,c2\n9,2,2\n10,1,1\n"))
+    assert storage.get(interval=1, since=1) == make_csv_datums(1, "timestamp,c1,c2\n4,2,2\n5,1,1\n6,3,3\n")
+    assert storage.get(interval=1, since=5) == make_csv_datums(1, "timestamp,c1,c2\n5,1,1\n6,3,3\n")
+    assert storage.get(interval=1, until=2) == make_csv_datums(1, "timestamp,c1,c2\n0,1,1\n1,2,2\n2,3,3\n")
+    assert storage.get(interval=1, until=1) == make_csv_datums(1, "timestamp,c1,c2\n0,1,1\n1,2,2\n")
+    assert storage.get(interval=1, since=5, until=5) == make_csv_datums(1, "timestamp,c1,c2\n5,1,1\n")
 

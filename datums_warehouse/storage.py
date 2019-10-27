@@ -4,6 +4,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from datums_warehouse.datums import CsvDatums
+
 logger = logging.getLogger(__name__)
 
 
@@ -56,12 +58,35 @@ class Storage:
             prv.unlink()
 
     def last_time_of(self, interval):
-        last_time = None
-        for df, _ in self._all_of(interval):
-            lt = df.timestamp.iloc[-1]
-            last_time = max(lt, last_time or lt)
-
+        _, last_time = self._get_last_of(interval, until=None)
         return last_time
+
+    def _get_last_of(self, interval, until):
+        last_time = None
+        last_df = None
+        for df, _ in self._all_of(interval):
+            if until and df.timestamp.iloc[0] > until:
+                continue
+
+            lt = df.timestamp.iloc[-1]
+            last_time = last_time or lt
+            if lt >= last_time:
+                last_time = lt
+                last_df = df
+
+        return last_df, last_time
+
+    def get(self, interval, since=None, until=None):
+        df = self._get_in_range(interval, since, until)
+        return CsvDatums(interval, df.to_csv(index=False))
+
+    def _get_in_range(self, interval, since, until):
+        selected_df, _ = self._get_last_of(interval, until)
+        if since and since > selected_df.timestamp.iloc[0]:
+            selected_df = selected_df[selected_df.timestamp >= since]
+        if until and until < selected_df.timestamp.iloc[-1]:
+            selected_df = selected_df[selected_df.timestamp <= until]
+        return selected_df
 
 
 class InvalidDatumError(ValueError):
