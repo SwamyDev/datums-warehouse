@@ -39,9 +39,9 @@ def require_auth(route):
     return wrapped_route
 
 
-@bp.route("<string:sym>")
+@bp.route("<string:sym>/<int:interval>")
 @require_auth
-def query_symbols(sym):
+def query_symbols(sym, interval):
     csv = _get_data_dir() / f'csv/{sym}.csv'
     if not csv.exists():
         return jsonify({"csv": None, "error": f"symbol {sym} does not exist"}), 200

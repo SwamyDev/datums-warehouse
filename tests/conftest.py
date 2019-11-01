@@ -1,5 +1,6 @@
 import base64
 from collections import namedtuple
+from contextlib import contextmanager
 
 import pytest
 from werkzeug.security import generate_password_hash
@@ -50,9 +51,25 @@ def _make_auth_header(user, password):
 class Query:
     def __init__(self, client):
         self._client = client
+        self._auth_args = None
+        self.default_auth()
 
-    def symbol(self, sym):
-        return self._client.get(f'/api/v1.0/csv/{sym}', headers=_make_auth_header(TEST_USER, TEST_PASSWORD))
+    def default_auth(self):
+        self._auth_args = dict(headers=_make_auth_header(TEST_USER, TEST_PASSWORD))
+
+    def set_auth(self, auth):
+        self._auth_args = auth
+
+    @contextmanager
+    def authentication(self, **auth):
+        try:
+            self.set_auth(auth)
+            yield query
+        finally:
+            self.default_auth()
+
+    def symbol(self, sym='symbol', interval=30):
+        return self._client.get(f'/api/v1.0/csv/{sym}/{interval}', **self._auth_args)
 
 
 @pytest.fixture
