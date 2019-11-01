@@ -66,7 +66,7 @@ def write_csv(valid_datums, fragmented_datums):
 
 @pytest.fixture
 def app(tmp_path, credentials, write_csv, warehouse_cfg):
-    cfg_file = tmp_path / "warehouse.cfg"
+    cfg_file = tmp_path / "warehouse.json"
     with open(cfg_file, mode='w') as f:
         json.dump(warehouse_cfg, f)
     yield create_app({'TESTING': True, 'CREDENTIALS': credentials, 'WAREHOUSE': cfg_file})
