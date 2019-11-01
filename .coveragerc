@@ -1,3 +1,5 @@
+[run]
+source = datums_warehouse/
 [report]
 exclude_lines =
     pragma: no cover

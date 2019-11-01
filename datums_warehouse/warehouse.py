@@ -4,11 +4,11 @@ from datums_warehouse.source import KrakenSource
 from datums_warehouse.storage import Storage
 
 
-def make_storage(storage, pair):
+def make_storage(storage, pair):  # pragma: no cover simple factory function
     return Storage(Path(storage) / pair)
 
 
-def make_source(src_type, interval, pair):
+def make_source(src_type, interval, pair):  # pragma: no cover simple factory function
     if src_type == 'Kraken':
         return KrakenSource(interval, pair)
 
