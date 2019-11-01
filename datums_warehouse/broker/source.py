@@ -1,8 +1,8 @@
 import requests
 
-from datums_warehouse.adapters import KrakenAdapter
-from datums_warehouse.datums import CsvDatums
-from datums_warehouse.validation import validate
+from datums_warehouse.broker.adapters import KrakenAdapter
+from datums_warehouse.broker.datums import CsvDatums
+from datums_warehouse.broker.validation import validate
 
 
 def to_nano_sec(t):

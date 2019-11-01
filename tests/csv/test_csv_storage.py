@@ -2,7 +2,7 @@ import logging
 
 import pytest
 
-from datums_warehouse.storage import InvalidDatumError, Storage
+from datums_warehouse.broker.storage import InvalidDatumError, Storage
 
 
 @pytest.fixture

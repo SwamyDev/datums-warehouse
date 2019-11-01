@@ -1,8 +1,8 @@
 import pytest
 
-import datums_warehouse.source as module_under_test
-from datums_warehouse.datums import CsvDatums
-from datums_warehouse.source import KrakenSource
+import datums_warehouse.broker.source as module_under_test
+from datums_warehouse.broker.datums import CsvDatums
+from datums_warehouse.broker.source import KrakenSource
 
 
 class GetRequest:

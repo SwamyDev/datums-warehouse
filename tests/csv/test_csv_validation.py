@@ -3,7 +3,7 @@ from io import StringIO
 
 import pytest
 
-from datums_warehouse.validation import DataError, validate
+from datums_warehouse.broker.validation import DataError, validate
 
 
 @pytest.fixture

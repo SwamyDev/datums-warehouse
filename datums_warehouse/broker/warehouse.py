@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from datums_warehouse.source import KrakenSource
-from datums_warehouse.storage import Storage
+from datums_warehouse.broker.source import KrakenSource
+from datums_warehouse.broker.storage import Storage
 
 
 def make_storage(storage, pair):  # pragma: no cover simple factory function

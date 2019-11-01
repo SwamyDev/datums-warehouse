@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from datums_warehouse.warehouse import Warehouse, MissingPacketError
+from datums_warehouse.broker.warehouse import Warehouse, MissingPacketError
 
 
 class Data:
@@ -64,7 +64,7 @@ class StorageStub:
 
 @pytest.fixture(autouse=True)
 def storage(monkeypatch):
-    import datums_warehouse.warehouse as module_under_test
+    import datums_warehouse.broker.warehouse as module_under_test
     s = StorageStub()
     monkeypatch.setattr(module_under_test, 'make_storage', s)
     return s
@@ -99,7 +99,7 @@ class SourceSpy:
 
 @pytest.fixture
 def source(monkeypatch):
-    import datums_warehouse.warehouse as module_under_test
+    import datums_warehouse.broker.warehouse as module_under_test
     s = SourceSpy()
     monkeypatch.setattr(module_under_test, 'make_source', s)
     return s
