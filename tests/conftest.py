@@ -11,20 +11,27 @@ TEST_PASSWORD = "pass"
 
 
 @pytest.fixture
+def write_credentials(tmp_path):
+    credentials = tmp_path / "credentials"
+    credentials.mkdir()
+    (credentials / "warehouse.passwd").write_text(f"{TEST_USER}:{generate_password_hash(TEST_PASSWORD)}\n"
+                                                  f"other_user:{generate_password_hash('other_pass')}\n")
+
+
+@pytest.fixture
 def test_sym():
     return namedtuple("TestSymbol", ["name", "data"])(name="TEST_SYM", data="c1,c2\n0,1\n")
 
 
 @pytest.fixture
-def app(tmp_path, test_sym):
-    creds = tmp_path / "creds"
-    creds.mkdir()
-    (creds / "warehouse.passwd").write_text(f"{TEST_USER}:{generate_password_hash(TEST_PASSWORD)}\n"
-                                            f"other_user:{generate_password_hash('other_pass')}\n")
+def write_csv(tmp_path, test_sym):
     csv = tmp_path / "csv"
     csv.mkdir()
     (csv / f"{test_sym.name}.csv").write_text(test_sym.data)
 
+
+@pytest.fixture
+def app(tmp_path, write_credentials, write_csv):
     yield create_app({'TESTING': True, 'DATA_DIR': str(tmp_path)})
 
 

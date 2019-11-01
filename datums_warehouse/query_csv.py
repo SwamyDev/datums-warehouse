@@ -16,7 +16,7 @@ def _invalid_auth():
 
 
 def _get_credentials():
-    lines = (_get_data_dir() / "creds/warehouse.passwd").read_text().splitlines()
+    lines = (_get_data_dir() / "credentials/warehouse.passwd").read_text().splitlines()
 
     def split_cred(raw):
         i = raw.find(':')
