@@ -1,9 +1,10 @@
+import logging
 from io import StringIO
 from pathlib import Path
 
-import logging
 import pandas as pd
 
+from datums_warehouse.datums import CsvDatums
 
 logger = logging.getLogger(__name__)
 
@@ -27,13 +28,16 @@ class Storage:
         return df
 
     def _maybe_prepend_existing(self, new_df, itv):
-        for file in self._directory.glob(f"{itv}__*.gz"):
-            prv = pd.read_csv(file)
+        for prv, file in self._all_of(itv):
             if self._can_concatenate(new_df, prv, itv):
-                new_df = pd.concat([prv, new_df]).drop_duplicates(subset='timestamp')\
+                new_df = pd.concat([prv, new_df]).drop_duplicates(subset='timestamp') \
                     .reset_index(drop=True)
                 return new_df, file
         return new_df, None
+
+    def _all_of(self, interval):
+        for file in self._directory.glob(f"{interval}__*.gz"):
+            yield pd.read_csv(file), file
 
     @staticmethod
     def _can_concatenate(new_df, prv_df, itv):
@@ -52,6 +56,36 @@ class Storage:
             logger.info(f"creating new csv storage: {file}")
         else:
             prv.unlink()
+
+    def last_time_of(self, interval):
+        _, last_time = self._get_last_of(interval, until=None)
+        return last_time
+
+    def _get_last_of(self, interval, until):
+        def only_df(tp):
+            return tp[0]
+
+        def starts_before_until(df):
+            return until is None or df.timestamp.iloc[0] <= until
+
+        def last_ts(df):
+            return df.timestamp.iloc[-1]
+
+        all_including_until = filter(starts_before_until, map(only_df, self._all_of(interval)))
+        last_df = max(all_including_until, key=last_ts)
+        return last_df, last_df.timestamp.iloc[-1]
+
+    def get(self, interval, since=None, until=None):
+        df = self._get_in_range(interval, since, until)
+        return CsvDatums(interval, df.to_csv(index=False))
+
+    def _get_in_range(self, interval, since, until):
+        selected_df, _ = self._get_last_of(interval, until)
+        if since and since > selected_df.timestamp.iloc[0]:
+            selected_df = selected_df[selected_df.timestamp >= since]
+        if until and until < selected_df.timestamp.iloc[-1]:
+            selected_df = selected_df[selected_df.timestamp <= until]
+        return selected_df
 
 
 class InvalidDatumError(ValueError):
