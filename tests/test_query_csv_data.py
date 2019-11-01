@@ -8,14 +8,18 @@ def test_requesting_non_existent_data(query):
     assert "unknown" in query.symbol("unknown").json['error']
 
 
-def test_request_existing_data(query, symbol_datums):
-    for datums in symbol_datums:
-        assert query.symbol(datums['pair'], datums['interval']).json['csv'] == datums['csv']
+def test_request_existing_data(query, valid_datums):
+    for datums in valid_datums:
+        assert query.symbol(*parameters(datums)).json['csv'] == datums['csv']
+
+
+def parameters(datum):
+    return datum['pair'], datum['interval']
 
 
 @pytest.fixture
-def fst_datum(symbol_datums):
-    return first(symbol_datums)
+def fst_datum(valid_datums):
+    return first(valid_datums)
 
 
 @pytest.fixture
@@ -33,7 +37,7 @@ def ranges(request, fst_range):
 
 
 def test_request_data_range(query, fst_datum, fst_range, ranges):
-    csv = query.symbol(fst_datum['pair'], fst_datum['interval'], since=ranges.min, until=ranges.max).json['csv']
+    csv = query.symbol(*parameters(fst_datum), since=ranges.min, until=ranges.max).json['csv']
     assert csv == slice_csv(fst_datum['csv'], start=max(ranges.min, fst_range.min), stop=min(ranges.max, fst_range.max))
 
 
@@ -49,5 +53,9 @@ def slice_csv(csv, start, stop):
 
 
 def test_request_only_since(query, fst_datum, fst_range):
-    csv = query.symbol(fst_datum['pair'], fst_datum['interval'], since=fst_range.min + 300).json['csv']
+    csv = query.symbol(*parameters(fst_datum), since=fst_range.min + 300).json['csv']
     assert csv == slice_csv(fst_datum['csv'], start=fst_range.min + 300, stop=fst_range.max)
+
+
+def test_retrieving_invalid_csv_data(query, fragmented_datums):
+    assert 'gap' in query.symbol(*parameters(first(fragmented_datums))).json['error']

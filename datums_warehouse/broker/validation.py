@@ -1,9 +1,11 @@
+from io import StringIO
+
 import numpy as np
 import pandas as pd
 
 
 def validate(datums, exclude_outliers=None, z_score_threshold=10):
-    df = pd.read_csv(datums.csv)
+    df = pd.read_csv(StringIO(datums.csv))
     if df.empty:
         raise DataError("no data has been found")
 

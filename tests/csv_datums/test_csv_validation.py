@@ -16,7 +16,7 @@ def make_datums(make_csv_datums):
 
 def test_validate_empty_csv(make_datums):
     with pytest.raises(DataError) as e:
-        validate(make_datums(StringIO("c1,c2\n")))
+        validate(make_datums("c1,c2\n"))
     assert "no data" in exception_msg(e)
 
 
@@ -47,7 +47,7 @@ def make_csv_lines(shape=None):
 
 
 def make_csv(lines):
-    return StringIO("\n".join([",".join(r) for r in lines]) + "\n")
+    return "\n".join([",".join(r) for r in lines]) + "\n"
 
 
 def line_from(missing):

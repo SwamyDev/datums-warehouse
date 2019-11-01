@@ -1,6 +1,7 @@
 import base64
 import gzip
 import json
+import random
 from collections import namedtuple
 from contextlib import contextmanager
 from pathlib import Path
@@ -27,24 +28,36 @@ def credentials(tmp_path):
 
 @pytest.fixture
 def warehouse_cfg(tmp_path):
-    return {'TEST_SYM/30': {'storage': str(tmp_path / "csv"), 'interval': 30, 'pair': 'TEST_SYM'}}
+    return {'TEST_SYM/30': {'storage': str(tmp_path / "csv"), 'interval': 30, 'pair': 'TEST_SYM'},
+            'INVALID_SYM/5': {'storage': str(tmp_path / "csv"), 'interval': 5, 'pair': 'INVALID_SYM'}}
 
 
 @pytest.fixture
-def symbol_datums(warehouse_cfg):
+def valid_datums(warehouse_cfg):
     def add_csv_and_range(cfg):
-        cfg['csv'] = "timestamp,c1,c2\n" + \
-                     "\n".join([f"{t},{t + 1 % 10},{t + 2 % 10}" for t in range(TEST_RANGE.min, TEST_RANGE.max, 30)]) + \
-                     "\n"
+        lines = [f"{t},{t + 1 % 10},{t + 2 % 10}" for t in range(TEST_RANGE.min, TEST_RANGE.max, 30)]
+        cfg['csv'] = "timestamp,c1,c2\n" + "\n".join(lines) + "\n"
         cfg['range'] = TEST_RANGE
         return cfg
 
-    return [add_csv_and_range(cfg) for cfg in warehouse_cfg.values()]
+    return [add_csv_and_range(warehouse_cfg[key]) for key in warehouse_cfg if 'INVALID' not in key]
 
 
 @pytest.fixture
-def write_csv(symbol_datums):
-    for datums in symbol_datums:
+def fragmented_datums(warehouse_cfg):
+    def add_csv_and_range(cfg):
+        lines = [f"{t},{t + 1 % 10},{t + 2 % 10}" for t in range(TEST_RANGE.min, TEST_RANGE.max, 30)]
+        del lines[random.randint(2, TEST_RANGE.max - TEST_RANGE.min - 2) // 30]
+        cfg['csv'] = "timestamp,c1,c2\n" + "\n".join(lines) + "\n"
+        cfg['range'] = TEST_RANGE
+        return cfg
+
+    return [add_csv_and_range(warehouse_cfg[key]) for key in warehouse_cfg if 'INVALID' in key]
+
+
+@pytest.fixture
+def write_csv(valid_datums, fragmented_datums):
+    for datums in valid_datums + fragmented_datums:
         d = Path(datums['storage']) / datums['pair']
         d.mkdir(parents=True)
         with gzip.open((d / f"{datums['interval']}__{TEST_RANGE[0]}_{TEST_RANGE[1]}.gz"), 'wb') as f:
