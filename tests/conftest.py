@@ -1,4 +1,5 @@
 import base64
+import json
 from collections import namedtuple
 from contextlib import contextmanager
 
@@ -25,6 +26,11 @@ def test_sym():
 
 
 @pytest.fixture
+def warehouse_cfg(tmp_path):
+    return {'TEST_SYM/30': {'storage': str(tmp_path / "csv"), 'interval': 30, 'pair': 'TEST_SYM'}}
+
+
+@pytest.fixture
 def write_csv(tmp_path, test_sym):
     csv = tmp_path / "csv"
     csv.mkdir()
@@ -32,8 +38,11 @@ def write_csv(tmp_path, test_sym):
 
 
 @pytest.fixture
-def app(tmp_path, write_credentials, write_csv):
-    yield create_app({'TESTING': True, 'DATA_DIR': str(tmp_path)})
+def app(tmp_path, write_credentials, write_csv, warehouse_cfg):
+    cfg_file = tmp_path / "warehouse.cfg"
+    with open(cfg_file, mode='w') as f:
+        json.dump(warehouse_cfg, f)
+    yield create_app({'TESTING': True, 'DATA_DIR': str(tmp_path), 'WAREHOUSE': cfg_file})
 
 
 @pytest.fixture
