@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from datums_warehouse.warehouse import Warehouse, MissingPacketError
@@ -5,11 +7,10 @@ from datums_warehouse.warehouse import Warehouse, MissingPacketError
 
 class Data:
     def __init__(self, from_dir, with_interval, with_since=None, with_until=None):
-        self.from_dir = from_dir
+        self.from_dir = Path(from_dir)
         self.with_interval = with_interval
         self.with_since = with_since
         self.with_until = with_until
-        self.last_time = 1500001000
 
     def __repr__(self):
         optionals = []
@@ -26,22 +27,47 @@ class Data:
 
 
 class StorageStub:
-    def __init__(self, directory):
-        self.directory = directory
+    class StorageAPI:
+        def __init__(self, owner, storage, pair):
+            self.owner = owner
+            self.storage = storage
+            self.pair = pair
 
-    def get(self, interval, since=None, until=None):
-        return Data(from_dir=self.directory, with_interval=interval, with_since=since,
-                    with_until=until)
+        def get(self, interval, since=None, until=None):
+            directory = Path(self.storage) / self.pair
+            return Data(from_dir=directory, with_interval=interval, with_since=since, with_until=until)
 
-    def last_time_of(self, interval):
-        d = self.get(interval)
-        return d.last_time
+        def last_time_of(self, interval):
+            return self.owner.last_times.get(self.owner.make_key_for(self.storage, interval, self.pair), 0)
+
+    def __init__(self):
+        self.last_times = dict()
+
+    def __call__(self, storage, pair):
+        return self.StorageAPI(self, storage, pair)
+
+    def last_time_of(self, storage, interval, pair):
+        class _Proxy:
+            def __init__(self, owner, key):
+                self.owner = owner
+                self.key = key
+
+            def set(self, time):
+                self.owner.last_times[self.key] = time
+
+        return _Proxy(self, self.make_key_for(storage, interval, pair))
+
+    @staticmethod
+    def make_key_for(storage, interval, pair):
+        return "".join(sorted(map(str, [storage, interval, pair])))
 
 
 @pytest.fixture(autouse=True)
-def storage_factory(monkeypatch):
+def storage(monkeypatch):
     import datums_warehouse.warehouse as module_under_test
-    monkeypatch.setattr(module_under_test, 'Storage', StorageStub)
+    s = StorageStub()
+    monkeypatch.setattr(module_under_test, 'make_storage', s)
+    return s
 
 
 class SourceSpy:
@@ -54,20 +80,21 @@ class SourceSpy:
 
     def __init__(self):
         self.type_created = None
-        self.with_ctr_kwargs = None
+        self.with_interval = None
+        self.with_pair = None
         self.received_query_since = None
 
-    # noinspection PyShadowingBuiltins
-    def __call__(self, type, **kwargs):
-        self.type_created = type
-        self.with_ctr_kwargs = kwargs
+    def __call__(self, source_type, interval, pair):
+        self.type_created = source_type
+        self.with_interval = interval
+        self.with_pair = pair
         return self.SourceAPI(self)
 
-    def updated_from(self, t, with_kwargs):
-        return self.type_created == t and self.with_ctr_kwargs == with_kwargs
+    def updated_from(self, t, with_interval, with_pair):
+        return self.type_created == t and self.with_interval == with_interval and self.with_pair == with_pair
 
     def __repr__(self):
-        return f"SourceSpy(): type_created={self.type_created}, with_ctr_kwargs={self.with_ctr_kwargs}"
+        return f"SourceSpy(): type_created={self.type_created}, with_interval={self.with_interval}, with_pair={self.with_pair}"
 
 
 @pytest.fixture
@@ -87,24 +114,26 @@ def test_warehouse_raises_an_error_when_accessing_non_existent_packet():
 
 
 def test_warehouse_retrieves_specified_packet():
-    warehouse = Warehouse({'packet_id': {'storage': "some/directory", 'interval': 30},
-                           'other_pkt': {'storage': "some/directory", 'interval': 60}})
-    assert warehouse.retrieve('packet_id') == Data(from_dir="some/directory", with_interval=30)
+    warehouse = Warehouse({'packet_id': {'storage': "some/directory", 'interval': 30, 'pair': 'SMNPAR'},
+                           'other_pkt': {'storage': "some/directory", 'interval': 60, 'pair': 'SMNPAR'}})
+    assert warehouse.retrieve('packet_id') == Data(from_dir="some/directory/SMNPAR", with_interval=30)
 
 
 def test_warehouse_retrieves_specified_packet_range():
     warehouse = Warehouse(
-        {'packet_id': {'storage': "some/directory", 'interval': 30},
-         'other_pkt': {'storage': "some/directory", 'interval': 60}})
-    assert warehouse.retrieve('packet_id', since=1500000000, until=1500001000) == Data(from_dir="some/directory",
+        {'packet_id': {'storage': "some/directory", 'interval': 30, 'pair': 'SMNPAR'},
+         'other_pkt': {'storage': "some/directory", 'interval': 60, 'pair': 'SMNPAR'}})
+    assert warehouse.retrieve('packet_id', since=1500000000, until=1500001000) == Data(from_dir="some/directory/SMNPAR",
                                                                                        with_interval=30,
                                                                                        with_since=1500000000,
                                                                                        with_until=1500001000)
 
 
 @pytest.mark.parametrize('config,packets', [({}, set()),
-                                            ({'packet_id': {'storage': "some/directory", 'interval': 30},
-                                              'other_pkt': {'storage': "some/directory", 'interval': 60}},
+                                            ({'packet_id': {'storage': "some/directory", 'interval': 30,
+                                                            'pair': 'SMNPAR'},
+                                              'other_pkt': {'storage': "some/directory", 'interval': 60,
+                                                            'pair': 'SMNPAR'}},
                                              {'packet_id', 'other_pkt'})])
 def test_warehouse_reports_all_packets(config, packets):
     warehouse = Warehouse(config)
@@ -112,24 +141,25 @@ def test_warehouse_reports_all_packets(config, packets):
 
 
 def test_warehouse_updating_with_unknown_source():
-    warehouse = Warehouse({'packet_id': {'storage': "some/directory", 'interval': 30,
-                                         'source': {'type': "some_source", 'ctr': "args", 'more': 10}}})
+    warehouse = Warehouse({'packet_id': {'storage': "some/directory", 'interval': 30, 'pair': 'SMNPAR',
+                                         'source': "some_source"}})
     with pytest.raises(NotImplementedError):
         warehouse.update('packet_id')
 
 
 def test_warehouse_invokes_configured_query(source):
-    warehouse = Warehouse({'packet_id': {'storage': "some/directory", 'interval': 30,
-                                         'source': {'type': "some_source", 'ctr': "args", 'more': 10}},
-                           'other_pkt': {'storage': "some/directory", 'interval': 60}})
+    warehouse = Warehouse({'packet_id': {'storage': "some/directory", 'interval': 30, 'pair': 'SMNPAR',
+                                         'source': "some_source"},
+                           'other_pkt': {'storage': "some/directory", 'interval': 60, 'pair': 'SMNPAR', }})
     warehouse.update('packet_id')
-    assert source.updated_from('some_source', with_kwargs={'interval': 30, 'ctr': "args", 'more': 10})
+    assert source.updated_from('some_source', with_interval=30, with_pair="SMNPAR")
 
 
-def test_warehouse_updates_queries_source(source):
-    warehouse = Warehouse({'packet_id': {'storage': "some/directory", 'interval': 30,
-                                         'source': {'type': "some_source"}},
-                           'other_pkt': {'storage': "some/directory", 'interval': 60}})
-    last_time = warehouse.retrieve('packet_id').last_time
+def test_warehouse_updates_queries_source(source, storage):
+    cfg = {'packet_id': {'storage': "some/directory", 'interval': 30, 'pair': 'SMNPAR',
+                         'source': {'type': "some_source"}},
+           'other_pkt': {'storage': "some/directory", 'interval': 60, 'pair': 'SMNPAR'}}
+    warehouse = Warehouse(cfg)
+    storage.last_time_of("some/directory", interval=30, pair='SMNPAR').set(15000)
     warehouse.update('packet_id')
-    assert source.received_query_since == last_time + 30
+    assert source.received_query_since == 15000 + 30

@@ -62,19 +62,18 @@ class Storage:
         return last_time
 
     def _get_last_of(self, interval, until):
-        last_time = None
-        last_df = None
-        for df, _ in self._all_of(interval):
-            if until and df.timestamp.iloc[0] > until:
-                continue
+        def only_df(tp):
+            return tp[0]
 
-            lt = df.timestamp.iloc[-1]
-            last_time = last_time or lt
-            if lt >= last_time:
-                last_time = lt
-                last_df = df
+        def starts_before_until(df):
+            return until is None or df.timestamp.iloc[0] <= until
 
-        return last_df, last_time
+        def last_ts(df):
+            return df.timestamp.iloc[-1]
+
+        all_including_until = filter(starts_before_until, map(only_df, self._all_of(interval)))
+        last_df = max(all_including_until, key=last_ts)
+        return last_df, last_df.timestamp.iloc[-1]
 
     def get(self, interval, since=None, until=None):
         df = self._get_in_range(interval, since, until)

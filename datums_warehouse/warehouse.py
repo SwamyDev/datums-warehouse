@@ -1,15 +1,16 @@
+from pathlib import Path
+
 from datums_warehouse.source import KrakenSource
 from datums_warehouse.storage import Storage
 
 
-def make_storage(directory):
-    return Storage(directory)
+def make_storage(storage, pair):
+    return Storage(Path(storage) / pair)
 
 
-# noinspection PyShadowingBuiltins
-def make_source(type, **kwargs):
-    if type == 'Kraken':
-        return KrakenSource(**kwargs)
+def make_source(src_type, interval, pair):
+    if src_type == 'Kraken':
+        return KrakenSource(interval, pair)
 
     raise NotImplementedError(type)
 
@@ -17,6 +18,7 @@ def make_source(type, **kwargs):
 class Warehouse:
     _STORAGE_KEY = 'storage'
     _INTERVAL_KEY = 'interval'
+    _PAIR_KEY = 'pair'
     _SOURCE_KEY = 'source'
 
     def __init__(self, config):
@@ -25,7 +27,7 @@ class Warehouse:
     def retrieve(self, pkt_id, since=None, until=None):
         self._validate_packet(pkt_id)
         pkt_cfg = self._config[pkt_id]
-        storage = make_storage(pkt_cfg[self._STORAGE_KEY])
+        storage = make_storage(pkt_cfg[self._STORAGE_KEY], pkt_cfg[self._PAIR_KEY])
         return storage.get(pkt_cfg[self._INTERVAL_KEY], since, until)
 
     def _validate_packet(self, pkt_id):
@@ -38,11 +40,10 @@ class Warehouse:
     def update(self, pkt_id):
         self._validate_packet(pkt_id)
         pkt_cfg = self._config[pkt_id]
-        src_cfg = pkt_cfg[self._SOURCE_KEY]
         interval = pkt_cfg[self._INTERVAL_KEY]
-        src_cfg['interval'] = interval
-        src = make_source(**src_cfg)
-        storage = make_storage(pkt_cfg[self._STORAGE_KEY])
+        pair = pkt_cfg[self._PAIR_KEY]
+        src = make_source(pkt_cfg[self._SOURCE_KEY], interval, pair)
+        storage = make_storage(pkt_cfg[self._STORAGE_KEY], pair)
         src.query(storage.last_time_of(interval) + interval)
 
 

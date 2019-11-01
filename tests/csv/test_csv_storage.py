@@ -114,13 +114,18 @@ def test_get_last_stored_csv(storage, make_csv_datums):
     assert storage.get(interval=1) == make_csv_datums(1, "timestamp,c1,c2\n4,2,2\n5,1,1\n")
 
 
-def test_get_stored_csv_with_range(storage, make_csv_datums):
+@pytest.mark.parametrize('since,until,expected', [
+    (1, None, "timestamp,c1,c2\n8,3,3\n9,2,2\n10,1,1\n"),
+    (5, None, "timestamp,c1,c2\n8,3,3\n9,2,2\n10,1,1\n"),
+    (None, 2, "timestamp,c1,c2\n0,1,1\n1,2,2\n2,3,3\n"),
+    (None, 1, "timestamp,c1,c2\n0,1,1\n1,2,2\n"),
+    (None, 5, "timestamp,c1,c2\n4,2,2\n5,1,1\n"),
+    (5, 5, "timestamp,c1,c2\n5,1,1\n"),
+])
+def test_get_stored_csv_with_range(storage, make_csv_datums, since, until, expected):
     storage.store(make_csv_datums(1, "timestamp,c1,c2\n0,1,1\n1,2,2\n2,3,3\n"))
+    storage.store(make_csv_datums(1, "timestamp,c1,c2\n8,3,3\n9,2,2\n10,1,1\n"))
     storage.store(make_csv_datums(1, "timestamp,c1,c2\n4,2,2\n5,1,1\n6,3,3\n"))
     storage.store(make_csv_datums(30, "timestamp,c1,c2\n9,2,2\n10,1,1\n"))
-    assert storage.get(interval=1, since=1) == make_csv_datums(1, "timestamp,c1,c2\n4,2,2\n5,1,1\n6,3,3\n")
-    assert storage.get(interval=1, since=5) == make_csv_datums(1, "timestamp,c1,c2\n5,1,1\n6,3,3\n")
-    assert storage.get(interval=1, until=2) == make_csv_datums(1, "timestamp,c1,c2\n0,1,1\n1,2,2\n2,3,3\n")
-    assert storage.get(interval=1, until=1) == make_csv_datums(1, "timestamp,c1,c2\n0,1,1\n1,2,2\n")
-    assert storage.get(interval=1, since=5, until=5) == make_csv_datums(1, "timestamp,c1,c2\n5,1,1\n")
+    assert storage.get(1, since, until) == make_csv_datums(1, expected)
 
