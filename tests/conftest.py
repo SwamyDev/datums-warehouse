@@ -1,7 +1,9 @@
 import base64
+import gzip
 import json
 from collections import namedtuple
 from contextlib import contextmanager
+from pathlib import Path
 
 import pytest
 from werkzeug.security import generate_password_hash
@@ -13,16 +15,13 @@ TEST_PASSWORD = "pass"
 
 
 @pytest.fixture
-def write_credentials(tmp_path):
-    credentials = tmp_path / "credentials"
-    credentials.mkdir()
-    (credentials / "warehouse.passwd").write_text(f"{TEST_USER}:{generate_password_hash(TEST_PASSWORD)}\n"
-                                                  f"other_user:{generate_password_hash('other_pass')}\n")
-
-
-@pytest.fixture
-def test_sym():
-    return namedtuple("TestSymbol", ["name", "data"])(name="TEST_SYM", data="c1,c2\n0,1\n")
+def credentials(tmp_path):
+    d = tmp_path / "credentials"
+    d.mkdir()
+    crd = (d / "warehouse.passwd")
+    crd.write_text(f"{TEST_USER}:{generate_password_hash(TEST_PASSWORD)}\n"
+                   f"other_user:{generate_password_hash('other_pass')}\n")
+    return str(crd)
 
 
 @pytest.fixture
@@ -31,18 +30,29 @@ def warehouse_cfg(tmp_path):
 
 
 @pytest.fixture
-def write_csv(tmp_path, test_sym):
-    csv = tmp_path / "csv"
-    csv.mkdir()
-    (csv / f"{test_sym.name}.csv").write_text(test_sym.data)
+def symbol_datums(warehouse_cfg):
+    def add_csv(cfg):
+        cfg['csv'] = "timestamp,c1,c2\n0,1,1\n1,2,2\n2,3,3\n"
+        return cfg
+
+    return [add_csv(cfg) for cfg in warehouse_cfg.values()]
 
 
 @pytest.fixture
-def app(tmp_path, write_credentials, write_csv, warehouse_cfg):
+def write_csv(symbol_datums):
+    for datums in symbol_datums:
+        d = Path(datums['storage']) / datums['pair']
+        d.mkdir(parents=True)
+        with gzip.open((d / f"{datums['interval']}__0_15000000.gz"), 'wb') as f:
+            f.write(datums['csv'].encode())
+
+
+@pytest.fixture
+def app(tmp_path, credentials, write_csv, warehouse_cfg):
     cfg_file = tmp_path / "warehouse.cfg"
     with open(cfg_file, mode='w') as f:
         json.dump(warehouse_cfg, f)
-    yield create_app({'TESTING': True, 'DATA_DIR': str(tmp_path), 'WAREHOUSE': cfg_file})
+    yield create_app({'TESTING': True, 'CREDENTIALS': credentials, 'WAREHOUSE': cfg_file})
 
 
 @pytest.fixture
@@ -77,7 +87,7 @@ class Query:
         finally:
             self.default_auth()
 
-    def symbol(self, sym='symbol', interval=30):
+    def symbol(self, sym='TEST_SYM', interval=30):
         return self._client.get(f'/api/v1.0/csv/{sym}/{interval}', **self._auth_args)
 
 
