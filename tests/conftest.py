@@ -12,6 +12,7 @@ from datums_warehouse import create_app
 
 TEST_USER = "user"
 TEST_PASSWORD = "pass"
+TEST_RANGE = namedtuple('Range', ['min', 'max'])(1500000000, 1500003000)
 
 
 @pytest.fixture
@@ -31,11 +32,14 @@ def warehouse_cfg(tmp_path):
 
 @pytest.fixture
 def symbol_datums(warehouse_cfg):
-    def add_csv(cfg):
-        cfg['csv'] = "timestamp,c1,c2\n0,1,1\n1,2,2\n2,3,3\n"
+    def add_csv_and_range(cfg):
+        cfg['csv'] = "timestamp,c1,c2\n" + \
+                     "\n".join([f"{t},{t + 1 % 10},{t + 2 % 10}" for t in range(TEST_RANGE.min, TEST_RANGE.max, 30)]) + \
+                     "\n"
+        cfg['range'] = TEST_RANGE
         return cfg
 
-    return [add_csv(cfg) for cfg in warehouse_cfg.values()]
+    return [add_csv_and_range(cfg) for cfg in warehouse_cfg.values()]
 
 
 @pytest.fixture
@@ -43,7 +47,7 @@ def write_csv(symbol_datums):
     for datums in symbol_datums:
         d = Path(datums['storage']) / datums['pair']
         d.mkdir(parents=True)
-        with gzip.open((d / f"{datums['interval']}__0_15000000.gz"), 'wb') as f:
+        with gzip.open((d / f"{datums['interval']}__{TEST_RANGE[0]}_{TEST_RANGE[1]}.gz"), 'wb') as f:
             f.write(datums['csv'].encode())
 
 
@@ -87,8 +91,13 @@ class Query:
         finally:
             self.default_auth()
 
-    def symbol(self, sym='TEST_SYM', interval=30):
-        return self._client.get(f'/api/v1.0/csv/{sym}/{interval}', **self._auth_args)
+    def symbol(self, sym='TEST_SYM', interval=30, since=None, until=None):
+        url = [f'/api/v1.0/csv/{sym}/{interval}']
+        if since is not None:
+            url.append(str(since))
+        if until is not None:
+            url.append(str(until))
+        return self._client.get("/".join(url), **self._auth_args)
 
 
 @pytest.fixture

@@ -41,8 +41,24 @@ def require_auth(route):
 @bp.route("<string:sym>/<int:interval>")
 @require_auth
 def query_symbols(sym, interval):
+    return _retrieve_symbols(sym, interval)
+
+
+@bp.route("<string:sym>/<int:interval>/<int:since>")
+@require_auth
+def query_symbols_since(sym, interval, since):
+    return _retrieve_symbols(sym, interval, since)
+
+
+@bp.route("<string:sym>/<int:interval>/<int:since>/<int:until>")
+@require_auth
+def query_symbols_range(sym, interval, since, until):
+    return _retrieve_symbols(sym, interval, since, until)
+
+
+def _retrieve_symbols(sym, interval, since=None, until=None):
     try:
-        datums = get_warehouse().retrieve(f"{sym}/{interval}")
+        datums = get_warehouse().retrieve(f"{sym}/{interval}", since, until)
     except MissingPacketError as e:
         return jsonify({"csv": None, "error": str(e)}), 200
     return jsonify({"csv": datums.csv}), 200
