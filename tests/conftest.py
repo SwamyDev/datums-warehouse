@@ -35,7 +35,7 @@ def warehouse_cfg(tmp_path):
 @pytest.fixture
 def valid_datums(warehouse_cfg):
     def add_csv_and_range(cfg):
-        lines = [f"{t},{t + 1 % 10},{t + 2 % 10}" for t in range(TEST_RANGE.min, TEST_RANGE.max, 30)]
+        lines = [f"{t},{t + 1 % 10},{t + 2 % 10}" for t in range(TEST_RANGE.min, TEST_RANGE.max, 30 * 60)]
         cfg['csv'] = "timestamp,c1,c2\n" + "\n".join(lines) + "\n"
         cfg['range'] = TEST_RANGE
         return cfg
@@ -46,8 +46,8 @@ def valid_datums(warehouse_cfg):
 @pytest.fixture
 def fragmented_datums(warehouse_cfg):
     def add_csv_and_range(cfg):
-        lines = [f"{t},{t + 1 % 10},{t + 2 % 10}" for t in range(TEST_RANGE.min, TEST_RANGE.max, 30)]
-        del lines[random.randint(2, TEST_RANGE.max - TEST_RANGE.min - 2) // 30]
+        lines = [f"{t},{t + 1 % 10},{t + 2 % 10}" for t in range(TEST_RANGE.min, TEST_RANGE.max, 5 * 60)]
+        del lines[random.randint(2, len(lines) - 2)]
         cfg['csv'] = "timestamp,c1,c2\n" + "\n".join(lines) + "\n"
         cfg['range'] = TEST_RANGE
         return cfg

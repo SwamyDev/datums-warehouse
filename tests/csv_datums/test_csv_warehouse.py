@@ -33,6 +33,9 @@ class StorageStub:
             self.storage = storage
             self.pair = pair
 
+        def exists(self, interval):
+            return self.owner.exists
+
         def get(self, interval, since=None, until=None):
             directory = Path(self.storage) / self.pair
             return Data(from_dir=directory, with_interval=interval, with_since=since, with_until=until)
@@ -40,8 +43,13 @@ class StorageStub:
         def last_time_of(self, interval):
             return self.owner.last_times.get(self.owner.make_key_for(self.storage, interval, self.pair), 0)
 
+        def store(self, datums):
+            self.owner.received_datums = datums
+
     def __init__(self):
         self.last_times = dict()
+        self.exists = True
+        self.received_datums = None
 
     def __call__(self, storage, pair):
         return self.StorageAPI(self, storage, pair)
@@ -61,6 +69,12 @@ class StorageStub:
     def make_key_for(storage, interval, pair):
         return "".join(sorted(map(str, [storage, interval, pair])))
 
+    def set_not_existent(self):
+        self.exists = False
+
+    def stored(self, datums):
+        return self.received_datums == datums
+
 
 @pytest.fixture(autouse=True)
 def storage(monkeypatch):
@@ -75,16 +89,22 @@ class SourceSpy:
         def __init__(self, owner):
             self.owner = owner
 
-        def query(self, since):
+        def query(self, since, exclude_outliers=None, z_score_threshold=10):
             self.owner.received_query_since = since
+            self.owner.received_validation_cfg = dict(exclude_outliers=exclude_outliers,
+                                                      z_score_threshold=z_score_threshold)
+            self.owner.returned_datums = Data(from_dir='remote_source', with_interval=30, with_since=since)
+            return self.owner.returned_datums
 
     def __init__(self):
         self.type_created = None
         self.with_interval = None
         self.with_pair = None
         self.received_query_since = None
+        self.received_validation_cfg = None
+        self.returned_datums = None
 
-    def __call__(self, source_type, interval, pair):
+    def __call__(self, source_type, pair, interval):
         self.type_created = source_type
         self.with_interval = interval
         self.with_pair = pair
@@ -179,6 +199,22 @@ def test_warehouse_invokes_configured_query(source):
     assert source.updated_from('some_source', with_interval=30, with_pair="SMNPAR")
 
 
+def test_warehouse_passes_validation_config_along_to_query(source):
+    warehouse = Warehouse({'packet_id': {'storage': "some/directory", 'interval': 30, 'pair': 'SMNPAR',
+                                         'source': "some_source", 'exclude_outliers': ['vwap'],
+                                         'z_score_threshold': 5}})
+    warehouse.update('packet_id')
+    assert source.received_validation_cfg == dict(exclude_outliers=['vwap'], z_score_threshold=5)
+
+
+def test_warehouse_stores_queried_updates(source, storage):
+    warehouse = Warehouse({'packet_id': {'storage': "some/directory", 'interval': 30, 'pair': 'SMNPAR',
+                                         'source': "some_source"},
+                           'other_pkt': {'storage': "some/directory", 'interval': 60, 'pair': 'SMNPAR', }})
+    warehouse.update('packet_id')
+    storage.stored(source.returned_datums)
+
+
 def test_warehouse_updates_queries_source(source, storage):
     cfg = {'packet_id': {'storage': "some/directory", 'interval': 30, 'pair': 'SMNPAR',
                          'source': {'type': "some_source"}},
@@ -187,3 +223,13 @@ def test_warehouse_updates_queries_source(source, storage):
     storage.last_time_of("some/directory", interval=30, pair='SMNPAR').set(15000)
     warehouse.update('packet_id')
     assert source.received_query_since == 15000 + 30
+
+
+def test_warehouse_updates_sources_from_zero_if_they_do_not_exist_yet(source, storage):
+    cfg = {'packet_id': {'storage': "some/directory", 'interval': 30, 'pair': 'SMNPAR',
+                         'source': {'type': "some_source"}},
+           'other_pkt': {'storage': "some/directory", 'interval': 60, 'pair': 'SMNPAR'}}
+    warehouse = Warehouse(cfg)
+    storage.set_not_existent()
+    warehouse.update('packet_id')
+    assert source.received_query_since == 0

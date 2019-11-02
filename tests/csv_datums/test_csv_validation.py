@@ -40,10 +40,10 @@ def make_csv_with(locations, value, shape=None):
 
 def make_csv_lines(shape=None):
     if shape is None:
-        return [["timestamp", "c1", "c2", "c3"], ["0", "1", "2", "3"], ["1", "2", "3", "4"]]
+        return [["timestamp", "c1", "c2", "c3"], ["0", "1", "2", "3"], ["60", "2", "3", "4"]]
 
     header = ["timestamp"] + [f"c{i + 1}" for i in range(shape[0])]
-    return [header] + [[str(ts)] + [str(random.random()) for _ in range(shape[0])] for ts in range(shape[1])]
+    return [header] + [[str(ts * 60)] + [str(random.random()) for _ in range(shape[0])] for ts in range(shape[1])]
 
 
 def make_csv(lines):
@@ -88,7 +88,7 @@ def test_gap_in_series(make_datums):
                                        ["0", "1", "2", "3"],
                                        ["120", "2", "3", "4"],
                                        ["180", "3", "4", "5"],
-                                       ["300", "4", "5", "6"]]), interval=60))
+                                       ["300", "4", "5", "6"]]), interval=1))
     assert "2, 4" in exception_msg(e)
 
 

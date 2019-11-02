@@ -22,4 +22,5 @@ setup(
     zip_safe=False,
     install_requires=['flask', 'werkzeug', 'pandas', 'numpy', 'requests'],
     extras_require={"test": ["pytest", "pytest-cov"]},
+    scripts=['scripts/update_warehouse']
 )

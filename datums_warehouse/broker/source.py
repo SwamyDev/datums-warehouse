@@ -6,7 +6,7 @@ from datums_warehouse.broker.validation import validate
 
 
 def to_nano_sec(t):
-    return t * 1e9
+    return int(t * 1e9)
 
 
 class KrakenSource:
@@ -17,6 +17,7 @@ class KrakenSource:
         self._interval = interval
         self._adapter = KrakenAdapter(self._interval)
 
-    def query(self, since):
+    def query(self, since, exclude_outliers=None, z_score_threshold=10):
         res = requests.get(self._TRADE_URL, params=dict(pair=self._pair, since=to_nano_sec(since)))
-        return validate(CsvDatums(self._interval, self._adapter(res.json())))
+        datums = CsvDatums(self._interval, self._adapter(res.json()))
+        return validate(datums, exclude_outliers, z_score_threshold)

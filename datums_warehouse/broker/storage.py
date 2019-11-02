@@ -3,6 +3,7 @@ from io import StringIO
 from pathlib import Path
 
 import pandas as pd
+from more_itertools import first
 
 from datums_warehouse.broker.datums import CsvDatums
 
@@ -13,7 +14,13 @@ class Storage:
     def __init__(self, directory):
         self._directory = Path(directory)
 
+    def exists(self, interval):
+        if not self._directory.exists():
+            return False
+        return first(self._all_of(interval), None) is not None
+
     def store(self, datums):
+        self._directory.mkdir(parents=True, exist_ok=True)
         df = self._read_csv(datums.csv)
         df, prv = self._maybe_prepend_existing(df, datums.interval)
         self._write_csv(df, datums.interval, prv)

@@ -3,7 +3,6 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/datums-warehouse.iml" filepath="$PROJECT_DIR$/.idea/datums-warehouse.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../pythia/.idea/pythia.iml" filepath="$PROJECT_DIR$/../pythia/.idea/pythia.iml" />
     </modules>
   </component>
 </project>

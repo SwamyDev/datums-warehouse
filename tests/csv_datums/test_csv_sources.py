@@ -96,7 +96,7 @@ def source(source_interval):
 
 @pytest.fixture(autouse=True)
 def validation(monkeypatch):
-    monkeypatch.setattr(module_under_test, 'validate', lambda d: Validated(d))
+    monkeypatch.setattr(module_under_test, 'validate', lambda d, *args, **kwargs: Validated(d))
 
 
 @pytest.fixture(autouse=True)

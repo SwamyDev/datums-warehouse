@@ -9,9 +9,9 @@ def make_storage(storage, pair):  # pragma: no cover simple factory function
     return Storage(Path(storage) / pair)
 
 
-def make_source(src_type, interval, pair):  # pragma: no cover simple factory function
+def make_source(src_type, pair, interval):  # pragma: no cover simple factory function
     if src_type == 'Kraken':
-        return KrakenSource(interval, pair)
+        return KrakenSource(pair, interval)
 
     raise NotImplementedError(type)
 
@@ -47,9 +47,11 @@ class Warehouse:
         pkt_cfg = self._config[pkt_id]
         interval = pkt_cfg[self._INTERVAL_KEY]
         pair = pkt_cfg[self._PAIR_KEY]
-        src = make_source(pkt_cfg[self._SOURCE_KEY], interval, pair)
+        src = make_source(pkt_cfg[self._SOURCE_KEY], pair, interval)
         storage = make_storage(pkt_cfg[self._STORAGE_KEY], pair)
-        src.query(storage.last_time_of(interval) + interval)
+        since = 0 if not storage.exists(interval) else storage.last_time_of(interval) + interval
+        storage.store(
+            src.query(since, pkt_cfg.get(self._EXCLUDE_OUTLIERS_KEY, None), pkt_cfg.get(self._Z_THRESHOLD_KEY, 10)))
 
 
 class MissingPacketError(IOError):
