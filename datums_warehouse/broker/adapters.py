@@ -1,8 +1,8 @@
-from more_itertools import split_before, one
+from more_itertools import one
 
 
 def truncate(x, digits):
-    return float(int(x * (10 ** digits))) / float(10**digits)
+    return float(int(x * (10 ** digits))) / float(10 ** digits)
 
 
 class KrakenAdapter:
@@ -44,21 +44,22 @@ class KrakenAdapter:
         return csv
 
     def _chunked_by_interval(self, trades):
-        split = None
+        prev_itv = None
+        buffer = []
+        for trade in trades:
+            ts = self._floor_to_interval(int(trade[2]))
+            if prev_itv is None:
+                prev_itv = self._floor_to_interval(ts)
+            if (ts - prev_itv) >= self._interval:
+                prev_itv = ts
+                if len(buffer) > 0:
+                    yield list(buffer)
+                    buffer.clear()
 
-        def next_interval(trd):
-            nonlocal split
-            ts = int(trd[2])
-            split = split or self._floor_to_interval(ts)
-            if ts >= split:
-                split += self._interval
-                return True
-            return False
-
-        return list(split_before(trades, next_interval))[:-1]
+            buffer.append(trade)
 
     def _floor_to_interval(self, ts):
-        return ts - (ts % self._interval)
+        return int(ts - (ts % self._interval))
 
     @staticmethod
     def _transpose(trs):
@@ -68,7 +69,8 @@ class KrakenAdapter:
         ttl_v = sum(vs)
         vwap = truncate(sum((p * v for p, v in zip(ps, vs))) / ttl_v, 1)
         ttl_v = round(ttl_v, 8)
-        line = f"{self._floor_to_interval(min(ts))},{ps[0]},{max(ps)},{min(ps)},{ps[-1]},{vwap},{ttl_v},{len(ts)}"
+        t = self._floor_to_interval(min(ts))
+        line = f"{t},{ps[0]},{max(ps)},{min(ps)},{ps[-1]},{vwap},{ttl_v},{len(ts)}"
         return line
 
 
