@@ -233,3 +233,13 @@ def test_warehouse_updates_sources_from_zero_if_they_do_not_exist_yet(source, st
     storage.set_not_existent()
     warehouse.update('packet_id')
     assert source.received_query_since == 0
+
+
+def test_warehouse_updates_source_from_specified_start_time_if_they_do_not_exist_yet(source, storage):
+    cfg = {'packet_id': {'storage': "some/directory", 'interval': 30, 'pair': 'SMNPAR',
+                         'source': {'type': "some_source"}, 'start': 1000},
+           'other_pkt': {'storage': "some/directory", 'interval': 60, 'pair': 'SMNPAR'}}
+    warehouse = Warehouse(cfg)
+    storage.set_not_existent()
+    warehouse.update('packet_id')
+    assert source.received_query_since == 1000
