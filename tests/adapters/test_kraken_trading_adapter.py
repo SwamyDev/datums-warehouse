@@ -1,6 +1,6 @@
 import pytest
 
-from datums_warehouse.adapters import KrakenAdapter, InvalidFormatError, ResponseError
+from datums_warehouse.broker.adapters import KrakenAdapter, InvalidFormatError, ResponseError
 
 EXPECTED_OHLC = "timestamp,open,high,low,close,vwap,volume,count\n" \
                 "1571122800,7537.3,7564.8,7533.9,7557.6,7556.0,53.98027612,264\n" \

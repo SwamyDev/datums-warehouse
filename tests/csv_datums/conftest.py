@@ -1,6 +1,6 @@
 import pytest
 
-from datums_warehouse.datums import CsvDatums
+from datums_warehouse.broker.datums import CsvDatums
 
 
 @pytest.fixture

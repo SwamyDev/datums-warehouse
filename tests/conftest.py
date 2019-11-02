@@ -1,5 +1,10 @@
 import base64
+import gzip
+import json
+import random
 from collections import namedtuple
+from contextlib import contextmanager
+from pathlib import Path
 
 import pytest
 from werkzeug.security import generate_password_hash
@@ -8,24 +13,63 @@ from datums_warehouse import create_app
 
 TEST_USER = "user"
 TEST_PASSWORD = "pass"
+TEST_RANGE = namedtuple('Range', ['min', 'max'])(1500000000, 1500003000)
 
 
 @pytest.fixture
-def test_sym():
-    return namedtuple("TestSymbol", ["name", "data"])(name="TEST_SYM", data="c1,c2\n0,1\n")
+def credentials(tmp_path):
+    d = tmp_path / "credentials"
+    d.mkdir()
+    crd = (d / "warehouse.passwd")
+    crd.write_text(f"{TEST_USER}:{generate_password_hash(TEST_PASSWORD)}\n"
+                   f"other_user:{generate_password_hash('other_pass')}\n")
+    return str(crd)
 
 
 @pytest.fixture
-def app(tmp_path, test_sym):
-    creds = tmp_path / "creds"
-    creds.mkdir()
-    (creds / "warehouse.passwd").write_text(f"{TEST_USER}:{generate_password_hash(TEST_PASSWORD)}\n"
-                                            f"other_user:{generate_password_hash('other_pass')}\n")
-    csv = tmp_path / "csv"
-    csv.mkdir()
-    (csv / f"{test_sym.name}.csv").write_text(test_sym.data)
+def warehouse_cfg(tmp_path):
+    return {'TEST_SYM/30': {'storage': str(tmp_path / "csv"), 'interval': 30, 'pair': 'TEST_SYM'},
+            'INVALID_SYM/5': {'storage': str(tmp_path / "csv"), 'interval': 5, 'pair': 'INVALID_SYM'}}
 
-    yield create_app({'TESTING': True, 'DATA_DIR': str(tmp_path)})
+
+@pytest.fixture
+def valid_datums(warehouse_cfg):
+    return [add_csv_and_range(warehouse_cfg[key]) for key in warehouse_cfg if 'INVALID' not in key]
+
+
+def add_csv_and_range(cfg):
+    lines = [f"{t},{t + 1 % 10},{t + 2 % 10}" for t in range(TEST_RANGE.min, TEST_RANGE.max, cfg['interval'])]
+    cfg['csv'] = "timestamp,c1,c2\n" + "\n".join(lines) + "\n"
+    cfg['range'] = TEST_RANGE
+    return cfg
+
+
+@pytest.fixture
+def fragmented_datums(warehouse_cfg):
+    def create_gap_in_csv(cfg):
+        lines = cfg['csv'].split()
+        del lines[random.randint(3, len(lines) - 3)]
+        cfg['csv'] = "\n".join(lines) + "\n"
+        return cfg
+
+    return [create_gap_in_csv(add_csv_and_range(warehouse_cfg[key])) for key in warehouse_cfg if 'INVALID' in key]
+
+
+@pytest.fixture
+def write_csv(valid_datums, fragmented_datums):
+    for datums in valid_datums + fragmented_datums:
+        d = Path(datums['storage']) / datums['pair']
+        d.mkdir(parents=True)
+        with gzip.open((d / f"{datums['interval']}__{TEST_RANGE[0]}_{TEST_RANGE[1]}.gz"), 'wb') as f:
+            f.write(datums['csv'].encode())
+
+
+@pytest.fixture
+def app(tmp_path, credentials, write_csv, warehouse_cfg):
+    cfg_file = tmp_path / "warehouse.json"
+    with open(cfg_file, mode='w') as f:
+        json.dump(warehouse_cfg, f)
+    yield create_app({'TESTING': True, 'CREDENTIALS': credentials, 'WAREHOUSE': cfg_file})
 
 
 @pytest.fixture
@@ -43,9 +87,30 @@ def _make_auth_header(user, password):
 class Query:
     def __init__(self, client):
         self._client = client
+        self._auth_args = None
+        self.default_auth()
 
-    def symbol(self, sym):
-        return self._client.get(f'/api/v1.0/csv/{sym}', headers=_make_auth_header(TEST_USER, TEST_PASSWORD))
+    def default_auth(self):
+        self._auth_args = dict(headers=_make_auth_header(TEST_USER, TEST_PASSWORD))
+
+    def set_auth(self, auth):
+        self._auth_args = auth
+
+    @contextmanager
+    def authentication(self, **auth):
+        try:
+            self.set_auth(auth)
+            yield query
+        finally:
+            self.default_auth()
+
+    def symbol(self, sym='TEST_SYM', interval=30, since=None, until=None):
+        url = [f'/api/v1.0/csv/{sym}/{interval}']
+        if since is not None:
+            url.append(str(since))
+        if until is not None:
+            url.append(str(until))
+        return self._client.get("/".join(url), **self._auth_args)
 
 
 @pytest.fixture

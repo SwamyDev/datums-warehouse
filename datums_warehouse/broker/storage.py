@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from datums_warehouse.datums import CsvDatums
+from datums_warehouse.broker.datums import CsvDatums
 
 logger = logging.getLogger(__name__)
 

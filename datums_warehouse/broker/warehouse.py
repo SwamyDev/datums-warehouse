@@ -1,7 +1,8 @@
 from pathlib import Path
 
-from datums_warehouse.source import KrakenSource
-from datums_warehouse.storage import Storage
+from datums_warehouse.broker.source import KrakenSource
+from datums_warehouse.broker.storage import Storage
+from datums_warehouse.broker.validation import validate
 
 
 def make_storage(storage, pair):  # pragma: no cover simple factory function
@@ -20,6 +21,8 @@ class Warehouse:
     _INTERVAL_KEY = 'interval'
     _PAIR_KEY = 'pair'
     _SOURCE_KEY = 'source'
+    _EXCLUDE_OUTLIERS_KEY = 'exclude_outliers'
+    _Z_THRESHOLD_KEY = 'z_score_threshold'
 
     def __init__(self, config):
         self._config = config
@@ -28,7 +31,9 @@ class Warehouse:
         self._validate_packet(pkt_id)
         pkt_cfg = self._config[pkt_id]
         storage = make_storage(pkt_cfg[self._STORAGE_KEY], pkt_cfg[self._PAIR_KEY])
-        return storage.get(pkt_cfg[self._INTERVAL_KEY], since, until)
+        datums = storage.get(pkt_cfg[self._INTERVAL_KEY], since, until)
+        validate(datums, pkt_cfg.get(self._EXCLUDE_OUTLIERS_KEY, None), pkt_cfg.get(self._Z_THRESHOLD_KEY, 10))
+        return datums
 
     def _validate_packet(self, pkt_id):
         if pkt_id not in self._config:
