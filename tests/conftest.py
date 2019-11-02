@@ -34,25 +34,25 @@ def warehouse_cfg(tmp_path):
 
 @pytest.fixture
 def valid_datums(warehouse_cfg):
-    def add_csv_and_range(cfg):
-        lines = [f"{t},{t + 1 % 10},{t + 2 % 10}" for t in range(TEST_RANGE.min, TEST_RANGE.max, 30 * 60)]
-        cfg['csv'] = "timestamp,c1,c2\n" + "\n".join(lines) + "\n"
-        cfg['range'] = TEST_RANGE
-        return cfg
-
     return [add_csv_and_range(warehouse_cfg[key]) for key in warehouse_cfg if 'INVALID' not in key]
+
+
+def add_csv_and_range(cfg):
+    lines = [f"{t},{t + 1 % 10},{t + 2 % 10}" for t in range(TEST_RANGE.min, TEST_RANGE.max, cfg['interval'] * 60)]
+    cfg['csv'] = "timestamp,c1,c2\n" + "\n".join(lines) + "\n"
+    cfg['range'] = TEST_RANGE
+    return cfg
 
 
 @pytest.fixture
 def fragmented_datums(warehouse_cfg):
-    def add_csv_and_range(cfg):
-        lines = [f"{t},{t + 1 % 10},{t + 2 % 10}" for t in range(TEST_RANGE.min, TEST_RANGE.max, 5 * 60)]
-        del lines[random.randint(2, len(lines) - 2)]
-        cfg['csv'] = "timestamp,c1,c2\n" + "\n".join(lines) + "\n"
-        cfg['range'] = TEST_RANGE
+    def create_gap_in_csv(cfg):
+        lines = cfg['csv'].split()
+        del lines[random.randint(3, len(lines) - 3)]
+        cfg['csv'] = "\n".join(lines) + "\n"
         return cfg
 
-    return [add_csv_and_range(warehouse_cfg[key]) for key in warehouse_cfg if 'INVALID' in key]
+    return [create_gap_in_csv(add_csv_and_range(warehouse_cfg[key])) for key in warehouse_cfg if 'INVALID' in key]
 
 
 @pytest.fixture
