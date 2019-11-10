@@ -15,7 +15,7 @@ setup(
     description='Data warehouse that provides time series data via REST API',
     long_description=long_description,
     long_description_content_type='text/markdown',
-    url='https://github.com/SwamyDev/datmus-warehouse',
+    url='https://github.com/SwamyDev/datums-warehouse',
     author='Bernhard Raml',
     packages=find_packages(include='datums_warehouse'),
     include_package_data=True,

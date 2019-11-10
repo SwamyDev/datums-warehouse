@@ -1,5 +1,7 @@
 from more_itertools import one
 
+from datums_warehouse.broker.datums import floor_to_interval
+
 
 def truncate(x, digits):
     return float(int(x * (10 ** digits))) / float(10 ** digits)
@@ -59,7 +61,8 @@ class KrakenAdapter:
             buffer.append(trade)
 
     def _floor_to_interval(self, ts):
-        return int(ts - (ts % self._interval))
+        interval = self._interval
+        return floor_to_interval(ts, interval)
 
     @staticmethod
     def _transpose(trs):

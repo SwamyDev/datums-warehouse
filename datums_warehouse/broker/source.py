@@ -1,23 +1,126 @@
+import gzip
+import json
+import logging
+import time
+from pathlib import Path
+
 import requests
+from more_itertools import first
 
 from datums_warehouse.broker.adapters import KrakenAdapter
-from datums_warehouse.broker.datums import CsvDatums
-from datums_warehouse.broker.validation import validate
+from datums_warehouse.broker.datums import CsvDatums, floor_to_interval
+from datums_warehouse.broker.validation import validate, DataError
+
+LEDGER_FREQUENCY = 6
+logger = logging.getLogger(__name__)
 
 
 def to_nano_sec(t):
     return int(t * 1e9)
 
 
-class KrakenSource:
+class KrakenServerTime:
+    _TIME_URL = "https://api.kraken.com/0/public/Time"
+
+    def now(self):
+        res = requests.get(self._TIME_URL).json()
+        return res['result']['unixtime']
+
+
+class KrakenTrades:
     _TRADE_URL = "https://api.kraken.com/0/public/Trades"
 
-    def __init__(self, pair, interval):
+    def __init__(self, cache_dir, pair, max_results):
         self._pair = pair
+        self._cache = Path(cache_dir) / self._pair / "kraken_cache.gz"
+        self._max_results = max_results
+
+    def get(self, since, until):
+        res = self._get_cached(since, until)
+        len_results = get_len(res)
+        while get_last(res) < until and len_results < self._max_results:
+            time.sleep(LEDGER_FREQUENCY)
+            next_trades = self._query_remote_trades(get_last(res) or since)
+            self._update_cache(next_trades)
+            res = combine_trades(res, next_trades)
+            len_results = get_len(res)
+            logger.info(f" <<< received total: {len_results}")
+
+        return res
+
+    def _get_cached(self, since, until):
+        if not self._cache.exists():
+            return None
+
+        with gzip.open(self._cache, mode='rb') as file:
+            combined = None
+            start = time.time()
+            for line in file:
+                trades = json.loads(line, encoding='utf-8')
+                if get_last(trades) >= since:
+                    combined = combine_trades(combined, trades)
+                if get_last(combined) >= until or get_len(combined) >= self._max_results:
+                    break
+            duration = time.time() - start
+            logger.debug(f"[performance] cache lookup took: {duration}s")
+
+        logger.info(f" <<< cached, pair={self._pair}, since={since}, until={until}")
+        return combined
+
+    def _query_remote_trades(self, since):
+        logger.info(f" >>> querying {self._TRADE_URL}, pair={self._pair}, since={since}")
+        res = requests.get(self._TRADE_URL, params=dict(pair=self._pair, since=since)).json()
+        return res
+
+    def _update_cache(self, trades):
+        logger.info(f" >>> cache update, pair={self._pair}, len={get_len(trades)}")
+        self._cache.parent.mkdir(parents=True, exist_ok=True)
+        with gzip.open(self._cache, mode='ab') as file:
+            file.write(f"{json.dumps(trades)}\n".encode())
+
+
+def get_last(trades):
+    if trades is None:
+        return 0
+    return int(trades['result']['last'])
+
+
+def get_len(trades):
+    if trades is None:
+        return 0
+    pair = get_pair(trades)
+    return len(trades['result'][pair])
+
+
+def combine_trades(lhs, rhs):
+    if lhs is None:
+        return rhs
+    if rhs is None:
+        return lhs
+
+    lhs['result']['last'] = str(get_last(rhs))
+    pair = get_pair(lhs)
+    lhs['result'][pair] += rhs['result'][pair]
+    return lhs
+
+
+def get_pair(trades):
+    return first([k for k in trades['result'].keys() if k != 'last'])
+
+
+class KrakenSource:
+    def __init__(self, trades_storage, pair, interval, max_results=1e6):
+        self._trades = KrakenTrades(trades_storage, pair, max_results)
         self._interval = interval
         self._adapter = KrakenAdapter(self._interval)
+        self._server_time = KrakenServerTime()
 
     def query(self, since, exclude_outliers=None, z_score_threshold=10):
-        res = requests.get(self._TRADE_URL, params=dict(pair=self._pair, since=to_nano_sec(since)))
-        datums = CsvDatums(self._interval, self._adapter(res.json()))
-        return validate(datums, exclude_outliers, z_score_threshold)
+        last_itv = to_nano_sec(floor_to_interval(self._server_time.now(), self._interval * 60))
+        res = self._trades.get(to_nano_sec(since), last_itv)
+        datums = CsvDatums(self._interval, self._adapter(res))
+        try:
+            validate(datums, exclude_outliers, z_score_threshold)
+        except DataError as e:
+            logging.warning("invalid data found:\n", e.args[0])
+        return datums

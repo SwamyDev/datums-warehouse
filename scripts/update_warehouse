@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 import json
-import click
 import logging
+
+import click
 
 from datums_warehouse.broker.warehouse import Warehouse
 
@@ -10,8 +11,7 @@ from datums_warehouse.broker.warehouse import Warehouse
 @click.argument('config', type=click.File('r'))
 def update_warehouse(config):
     """Update the warehouse and its packets specified in the given config file"""
-    logging.basicConfig(level=logging.INFO)
-    logging.info("starting...")
+    logging.basicConfig(level=logging.DEBUG)
     cfg = json.load(config)
     with open(cfg['WAREHOUSE'], mode='r') as wc:
         warehouse = Warehouse(json.load(wc))

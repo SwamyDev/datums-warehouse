@@ -97,6 +97,7 @@ class SourceSpy:
             return self.owner.returned_datums
 
     def __init__(self):
+        self.trades_storage = None
         self.type_created = None
         self.with_interval = None
         self.with_pair = None
@@ -104,17 +105,18 @@ class SourceSpy:
         self.received_validation_cfg = None
         self.returned_datums = None
 
-    def __call__(self, source_type, pair, interval):
+    def __call__(self, trades_storage, source_type, pair, interval):
+        self.trades_storage = trades_storage
         self.type_created = source_type
         self.with_interval = interval
         self.with_pair = pair
         return self.SourceAPI(self)
 
-    def updated_from(self, t, with_interval, with_pair):
-        return self.type_created == t and self.with_interval == with_interval and self.with_pair == with_pair
+    def updated_from(self, t, with_interval, with_pair, with_storage):
+        return self.type_created == t and self.with_interval == with_interval and self.with_pair == with_pair and self.trades_storage == with_storage
 
     def __repr__(self):
-        return f"SourceSpy(): type_created={self.type_created}, with_interval={self.with_interval}, with_pair={self.with_pair}"
+        return f"SourceSpy(): trades_storage={self.trades_storage}, type_created={self.type_created}, with_interval={self.with_interval}, with_pair={self.with_pair}"
 
 
 @pytest.fixture
@@ -196,7 +198,7 @@ def test_warehouse_invokes_configured_query(source):
                                          'source': "some_source"},
                            'other_pkt': {'storage': "some/directory", 'interval': 60, 'pair': 'SMNPAR', }})
     warehouse.update('packet_id')
-    assert source.updated_from('some_source', with_interval=30, with_pair="SMNPAR")
+    assert source.updated_from('some_source', with_interval=30, with_pair="SMNPAR", with_storage="some/directory")
 
 
 def test_warehouse_passes_validation_config_along_to_query(source):

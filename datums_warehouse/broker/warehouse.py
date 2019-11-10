@@ -9,9 +9,9 @@ def make_storage(storage, pair):  # pragma: no cover simple factory function
     return Storage(Path(storage) / pair)
 
 
-def make_source(src_type, pair, interval):  # pragma: no cover simple factory function
+def make_source(storage, src_type, pair, interval):  # pragma: no cover simple factory function
     if src_type == 'Kraken':
-        return KrakenSource(pair, interval)
+        return KrakenSource(storage, pair, interval)
 
     raise NotImplementedError(type)
 
@@ -48,7 +48,7 @@ class Warehouse:
         pkt_cfg = self._config[pkt_id]
         interval = pkt_cfg[self._INTERVAL_KEY]
         pair = pkt_cfg[self._PAIR_KEY]
-        src = make_source(pkt_cfg[self._SOURCE_KEY], pair, interval)
+        src = make_source(pkt_cfg[self._STORAGE_KEY], pkt_cfg[self._SOURCE_KEY], pair, interval)
         storage = make_storage(pkt_cfg[self._STORAGE_KEY], pair)
         since = self._get_starting_point(interval, pkt_cfg, storage)
         outliers = pkt_cfg.get(self._EXCLUDE_OUTLIERS_KEY, None)
