@@ -122,5 +122,5 @@ class KrakenSource:
         try:
             validate(datums, exclude_outliers, z_score_threshold)
         except DataError as e:
-            logging.warning("invalid data found:\n", e.args[0])
+            logger.warning("invalid data found:\n", e.args[0])
         return datums
