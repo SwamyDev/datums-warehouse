@@ -36,6 +36,8 @@ class KrakenTrades:
         self._max_results = max_results
 
     def get(self, since, until):
+        # TODO: Refactor caching and querying removing the code duplication - maybe by using an index and extracting
+        # the cache into its own class
         res = self._get_cached(since, until)
         len_results = get_len(res)
         while get_last(res) < until and len_results < self._max_results:
@@ -88,8 +90,14 @@ def get_last(trades):
 def get_len(trades):
     if trades is None:
         return 0
+    trades = get_trades(trades)
+    return len(trades)
+
+
+def get_trades(trades):
     pair = get_pair(trades)
-    return len(trades['result'][pair])
+    trades = trades['result'][pair]
+    return trades
 
 
 def combine_trades(lhs, rhs):
