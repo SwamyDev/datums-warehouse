@@ -1,4 +1,5 @@
 import logging
+import random
 import time
 from pathlib import Path
 
@@ -48,7 +49,7 @@ class KrakenTrades:
             return cache.get(since, until)
 
     def _update_cache_with_trades(self, cache, from_ts):
-        time.sleep(LEDGER_FREQUENCY)
+        time.sleep(LEDGER_FREQUENCY + random.uniform(0, 1))
         res = self._query_remote_trades(from_ts)
         trades = get_trades(res)
         cache.update(trades, get_last(res))

@@ -1,4 +1,5 @@
 import logging
+import random
 
 import pytest
 
@@ -101,6 +102,15 @@ class ServerTimeStub:
         return self.current_time
 
 
+class RandomnessSpy:
+    def __init__(self):
+        self.history = list()
+
+    def uniform(self, a, b):
+        self.history.append(random.uniform(a, b))
+        return self.history[-1]
+
+
 @pytest.fixture
 def requests(monkeypatch):
     s = RequestsSpy()
@@ -172,6 +182,13 @@ def make_json(server_time, source_interval):
     return factory
 
 
+@pytest.fixture
+def randomness(monkeypatch):
+    s = RandomnessSpy()
+    monkeypatch.setattr(module_under_test, 'random', s)
+    return s
+
+
 def make_get(url, **params):
     return GetRequest(url, params)
 
@@ -224,7 +241,7 @@ class TestKrakenSource:
         assert source.query(since=1559347200) == csv_datums_from(adapted)
 
     def test_subsequent_queries_are_paused_with_frequency(self, source, source_interval, requests, server_time,
-                                                          local_time, make_json):
+                                                          local_time, make_json, randomness):
         server_time.set_current_time(1559347200 + source_interval * 2 * 60 + 10)
         requests.set_get_responses(
             make_json({'pair': expand_to_pair(1)}, last=to_nano_sec(1559347200 + source_interval * 60)),
@@ -233,7 +250,10 @@ class TestKrakenSource:
         )
 
         source.query(since=1559347200)
-        assert local_time.received_sleeps == [LEDGER_FREQUENCY, LEDGER_FREQUENCY]
+        assert local_time.received_sleeps == [
+            LEDGER_FREQUENCY + randomness.history[-2],
+            LEDGER_FREQUENCY + randomness.history[-1]
+        ]
 
     def test_subsequent_queries_use_cache_instead_of_remote(self, source, source_interval, requests, server_time,
                                                             local_time, make_json):
