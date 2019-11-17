@@ -64,3 +64,16 @@ def test_the_cache_is_persistent(cache_file):
         assert cache.last_timestamp() == seconds_to_ns(1500000004)
         assert cache.get(0, 1500000004) == [[10.0, 0.1, 1500000000.0], [11.0, 0.2, 1500000001.3],
                                             [12.0, 0.3, 1500000002.5], [13.0, 0.4, 1500000003.5]]
+
+
+def test_cache_skips_buffers_up_to_since(cache):
+    cache.update([
+        [10.0, 0.1, 1500000000.0],
+        [11.0, 0.2, 1500000001.3],
+    ], seconds_to_ns(1500000002))
+    cache.update([
+        [12.0, 0.3, 1500000002.5],
+        [13.0, 0.4, 1500000003.5],
+    ], seconds_to_ns(1500000004))
+    assert cache.get(1500000002.5, 1500000003.5) == [[12.0, 0.3, 1500000002.5], [13.0, 0.4, 1500000003.5]]
+    assert cache.get(1500000003.5, 1500000004) == [[13.0, 0.4, 1500000003.5]]

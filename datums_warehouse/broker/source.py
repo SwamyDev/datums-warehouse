@@ -74,7 +74,7 @@ def get_last(trades):
 def get_trades(res):
     pair = get_pair(res)
     pair_data = res['result'][pair]
-    return [[p, v, t] for p, v, t, _, _, _m in pair_data]
+    return [[float(p), float(v), float(t)] for p, v, t, _, _, _ in pair_data]
 
 
 def get_pair(trades):

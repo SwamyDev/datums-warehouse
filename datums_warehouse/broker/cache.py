@@ -1,9 +1,15 @@
+import io
+import math
 import struct
+import zlib
 from pathlib import Path
+
+from more_itertools import flatten
 
 
 class TradesCache:
     _TRADE = struct.Struct('<ddd')
+    _HEADER = struct.Struct('<II')
 
     def __init__(self, file):
         self._file = Path(file)
@@ -17,8 +23,10 @@ class TradesCache:
 
     def update(self, trades, last):
         with open(self._file, mode='ab') as file:
-            for trade in trades:
-                file.write(self._TRADE.pack(*trade))
+            raw = struct.pack(f'<{len(trades) * 3}d', *flatten(trades))
+            raw = zlib.compress(raw)
+            file.write(self._HEADER.pack(len(raw), int(math.ceil(trades[-1][2]))))
+            file.write(raw)
 
         with open(self._last_file, mode='w') as file:
             file.write(str(last))
@@ -28,14 +36,19 @@ class TradesCache:
             return []
 
         with open(self._file, mode='rb') as file:
-            return [trade for trade in self._read_trades(file) if since <= trade[2] <= until]
+            return [trade for trade in self._read_trades(file, since) if since <= trade[2] <= until]
 
-    def _read_trades(self, file):
-        n = self._TRADE.size
-        buf = file.read(n)
+    def _read_trades(self, file, since):
+        buf = file.read(self._HEADER.size)
         while buf:
-            yield list(self._TRADE.unpack(buf))
-            buf = file.read(n)
+            size, last = self._HEADER.unpack(buf)
+            if last < since:
+                file.seek(size, io.SEEK_CUR)
+            else:
+                raw = zlib.decompress(file.read(size))
+                for cnk in _chunked(raw, self._TRADE.size):
+                    yield list(self._TRADE.unpack(cnk))
+            buf = file.read(self._HEADER.size)
 
     def last_timestamp(self):
         if not self._file.exists():
@@ -43,3 +56,8 @@ class TradesCache:
 
         with open(self._last_file, mode='r') as file:
             return int(file.read())
+
+
+def _chunked(buffer, n):
+    for i in range(0, len(buffer), n):
+        yield buffer[i:i + n]
