@@ -1,9 +1,12 @@
+import logging
+
 import pytest
 
 import datums_warehouse.broker.source as module_under_test
 from datums_warehouse.broker.datums import CsvDatums
 from datums_warehouse.broker.source import KrakenSource, to_nano_sec, LEDGER_FREQUENCY, KrakenServerTime, \
     InvalidFormatError, ResponseError
+from datums_warehouse.broker.validation import DataError
 
 
 class GetRequest:
@@ -120,8 +123,14 @@ def validation(monkeypatch):
     class _Spy:
         def __init__(self):
             self.data = None
+            self.raises = None
+
+        def set_raises(self, raises):
+            self.raises = raises
 
         def __call__(self, d, *args, **kwargs):
+            if self.raises:
+                raise self.raises("mocked data error")
             self.data = d
             return self.data
 
@@ -269,6 +278,12 @@ class TestKrakenSource:
             trades=[[p, v, t] for p, v, t, _, _, _ in expand_to_pair(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)],
             with_interval=source_interval)
         assert source.query(since=1559347200) == csv_datums_from(adapted)
+
+    def test_logs_warning_on_invalid_data(self, source, validation, caplog):
+        caplog.set_level(logging.WARNING)
+        validation.set_raises(DataError)
+        source.query(since=1559347200)
+        assert "mocked data error" in caplog.text
 
 
 def test_kraken_server_time_queries_url_correctly(requests):

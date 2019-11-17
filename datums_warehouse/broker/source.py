@@ -66,8 +66,6 @@ class KrakenTrades:
 
 
 def get_last(trades):
-    if trades is None:
-        return 0
     return int(trades['result']['last'])
 
 
@@ -95,7 +93,7 @@ class KrakenSource:
         try:
             validate(datums, exclude_outliers, z_score_threshold)
         except DataError as e:
-            logger.warning("invalid data found:\n", e.args[0])
+            logger.warning(f"invalid data found:\n{str(e)}")
         return datums
 
 
