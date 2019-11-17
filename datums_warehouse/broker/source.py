@@ -33,22 +33,22 @@ class KrakenTrades:
 
     def __init__(self, cache_dir, pair, max_results):
         self._pair = pair
-        cache_file = Path(cache_dir) / self._pair / "kraken_cache"
-        cache_file.parent.mkdir(parents=True, exist_ok=True)
-        self._cache = TradesCache(cache_file)
+        self._cache_file = Path(cache_dir) / self._pair / "kraken_cache"
         self._max_results = max_results
+        self._cache_file.parent.mkdir(parents=True, exist_ok=True)
 
     def get(self, since, until):
         len_results = 0
-        while self._cache.last_timestamp() < to_nano_sec(until) and len_results < self._max_results:
-            time.sleep(LEDGER_FREQUENCY)
-            res = self._query_remote_trades(self._cache.last_timestamp() or to_nano_sec(since))
-            trades = get_trades(res)
-            self._cache.update(trades, get_last(res))
-            len_results += len(trades)
-            logger.info(f" <<< received total: {len_results}")
+        with TradesCache(self._cache_file) as cache:
+            while cache.last_timestamp() < to_nano_sec(until) and len_results < self._max_results:
+                time.sleep(LEDGER_FREQUENCY)
+                res = self._query_remote_trades(cache.last_timestamp() or to_nano_sec(since))
+                trades = get_trades(res)
+                cache.update(trades, get_last(res))
+                len_results += len(trades)
+                logger.info(f" <<< received total: {len_results}")
 
-        return self._cache.get(since, until)
+            return cache.get(since, until)
 
     def _query_remote_trades(self, since):
         logger.info(f" >>> querying {self._TRADE_URL}, pair={self._pair}, since={since}")
