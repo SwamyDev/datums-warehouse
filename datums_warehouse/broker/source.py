@@ -39,16 +39,13 @@ class KrakenTrades:
         self._max_results = max_results
 
     def get(self, since, until):
-        # TODO: Refactor caching and querying removing the code duplication - maybe by using an index and extracting
-        # the cache into its own class
-        trades = self._cache.get(since, until)
-        len_results = len(trades)
+        len_results = 0
         while self._cache.last_timestamp() < to_nano_sec(until) and len_results < self._max_results:
             time.sleep(LEDGER_FREQUENCY)
-            remote_res = self._query_remote_trades(self._cache.last_timestamp() or to_nano_sec(since))
-            trd = get_trades(remote_res)
-            self._cache.update(trd, get_last(remote_res))
-            len_results += len(trd)
+            res = self._query_remote_trades(self._cache.last_timestamp() or to_nano_sec(since))
+            trades = get_trades(res)
+            self._cache.update(trades, get_last(res))
+            len_results += len(trades)
             logger.info(f" <<< received total: {len_results}")
 
         return self._cache.get(since, until)
