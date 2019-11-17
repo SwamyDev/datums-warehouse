@@ -9,9 +9,10 @@ from datums_warehouse.broker.warehouse import Warehouse
 
 @click.command()
 @click.argument('config', type=click.File('r'))
-def update_warehouse(config):
+@click.option('--log-level', type=str, default='warning')
+def update_warehouse(config, log_level):
     """Update the warehouse and its packets specified in the given config file"""
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=getattr(logging, log_level.upper()))
     cfg = json.load(config)
     with open(cfg['WAREHOUSE'], mode='r') as wc:
         warehouse = Warehouse(json.load(wc))

@@ -40,15 +40,23 @@ class KrakenTrades:
     def get(self, since, until):
         len_results = 0
         with TradesCache(self._cache_file) as cache:
-            while cache.last_timestamp() < to_nano_sec(until) and len_results < self._max_results:
-                time.sleep(LEDGER_FREQUENCY)
-                res = self._query_remote_trades(cache.last_timestamp() or to_nano_sec(since))
-                trades = get_trades(res)
-                cache.update(trades, get_last(res))
+            while self._needs_to_update_until(cache, until) and len_results < self._max_results:
+                trades = self._update_cache_with_trades(cache, from_ts=cache.last_timestamp() or to_nano_sec(since))
                 len_results += len(trades)
                 logger.info(f" <<< received total: {len_results}")
 
             return cache.get(since, until)
+
+    def _update_cache_with_trades(self, cache, from_ts):
+        time.sleep(LEDGER_FREQUENCY)
+        res = self._query_remote_trades(from_ts)
+        trades = get_trades(res)
+        cache.update(trades, get_last(res))
+        return trades
+
+    @staticmethod
+    def _needs_to_update_until(cache, until):
+        return cache.last_timestamp() < to_nano_sec(until)
 
     def _query_remote_trades(self, since):
         logger.info(f" >>> querying {self._TRADE_URL}, pair={self._pair}, since={since}")

@@ -28,9 +28,9 @@ class KrakenAdapter:
         prev_itv = None
         buffer = []
         for trade in trades:
-            ts = self._floor_to_interval(int(trade[2]))
+            ts = floor_to_interval(int(trade[2]), self._interval)
             if prev_itv is None:
-                prev_itv = self._floor_to_interval(ts)
+                prev_itv = floor_to_interval(ts, self._interval)
             if (ts - prev_itv) >= self._interval:
                 prev_itv = ts
                 if len(buffer) > 0:
@@ -38,10 +38,6 @@ class KrakenAdapter:
                     buffer.clear()
 
             buffer.append(trade)
-
-    def _floor_to_interval(self, ts):
-        interval = self._interval
-        return floor_to_interval(ts, interval)
 
     @staticmethod
     def _transpose(trs):
@@ -51,6 +47,6 @@ class KrakenAdapter:
         ttl_v = sum(vs)
         vwap = truncate(sum((p * v for p, v in zip(ps, vs))) / ttl_v, 1)
         ttl_v = round(ttl_v, 8)
-        t = self._floor_to_interval(min(ts))
+        t = floor_to_interval(min(ts), self._interval)
         line = f"{t},{ps[0]},{max(ps)},{min(ps)},{ps[-1]},{vwap},{ttl_v},{len(ts)}"
         return line
