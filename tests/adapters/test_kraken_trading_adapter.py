@@ -1,6 +1,7 @@
 import pytest
 
-from datums_warehouse.broker.adapters import KrakenAdapter, InvalidFormatError, ResponseError
+from datums_warehouse.broker.adapters import KrakenAdapter
+from datums_warehouse.broker.source import get_trades
 from datums_warehouse.broker.validation import DataError
 
 EXPECTED_OHLC = "timestamp,open,high,low,close,vwap,volume,count\n" \
@@ -26,18 +27,7 @@ def adapter(make_adapter):
 
 
 def test_empty_data(adapter):
-    assert adapter({"error": [], "result": {"XXBTZEUR": []}}) == "timestamp,open,high,low,close,vwap,volume,count"
-
-
-@pytest.mark.parametrize("invalid", [dict(), dict(result={'pair': []}), dict(error=[])])
-def test_invalid_kraken_api_format(adapter, invalid):
-    with pytest.raises(InvalidFormatError):
-        adapter(invalid)
-
-
-def test_error_in_response(adapter):
-    with pytest.raises(ResponseError):
-        adapter(dict(error=['some error']))
+    assert adapter([]) == "timestamp,open,high,low,close,vwap,volume,count"
 
 
 @pytest.mark.parametrize("price,volume,time", [(1.0, 10.0, 0), (2.0, 15.0, 1)])
@@ -53,7 +43,7 @@ def trade(price, volume, time, type='s', mode='l', misc=''):
 
 
 def trades(*entries):
-    return dict(error=[], result=dict(ASTPAR=list(entries)))
+    return list(entries)
 
 
 def test_aggregate_multiple_entries_for_interval(adapter):
@@ -91,7 +81,7 @@ def test_handling_gaps(adapter):
 def test_with_real_data(make_adapter):
     adapter = make_adapter(interval=30)
     import json
-    assert adapter(json.loads(RAW_TRADES)) == EXPECTED_OHLC
+    assert adapter(get_trades(json.loads(RAW_TRADES))) == EXPECTED_OHLC
 
 
 def test_fin_gaps_in_real_data(make_adapter):
@@ -100,4 +90,4 @@ def test_fin_gaps_in_real_data(make_adapter):
     from datums_warehouse.broker.validation import validate
     from datums_warehouse.broker.datums import CsvDatums
     with pytest.raises(DataError):
-        validate(CsvDatums(30, adapter(json.loads(FRAGMENTED_TRADES))), z_score_threshold=20)
+        validate(CsvDatums(30, adapter(get_trades(json.loads(FRAGMENTED_TRADES)))), z_score_threshold=20)

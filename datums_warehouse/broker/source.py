@@ -29,6 +29,8 @@ class KrakenServerTime:
 
 class KrakenTrades:
     _TRADE_URL = "https://api.kraken.com/0/public/Trades"
+    _RESULT_KEY = "result"
+    _ERROR_KEY = "error"
 
     def __init__(self, cache_dir, pair, max_results):
         self._pair = pair
@@ -72,7 +74,16 @@ class KrakenTrades:
     def _query_remote_trades(self, since):
         logger.info(f" >>> querying {self._TRADE_URL}, pair={self._pair}, since={since}")
         res = requests.get(self._TRADE_URL, params=dict(pair=self._pair, since=since)).json()
+        self._validate(res)
         return res
+
+    def _validate(self, res):
+        if self._ERROR_KEY not in res:
+            raise InvalidFormatError(f"The Kraken API response is not in an expected format:\n {res}")
+        if len(res[self._ERROR_KEY]) != 0:
+            raise ResponseError(f"The Kraken API returned an error:\n {res}")
+        if self._RESULT_KEY not in res:
+            raise InvalidFormatError(f"The Kraken API response is not in an expected format:\n {res}")
 
     def _update_cache(self, trades):
         logger.info(f" >>> cache update, pair={self._pair}, len={get_len(trades)}")
@@ -132,3 +143,11 @@ class KrakenSource:
         except DataError as e:
             logger.warning("invalid data found:\n", e.args[0])
         return datums
+
+
+class InvalidFormatError(TypeError):
+    pass
+
+
+class ResponseError(ValueError):
+    pass

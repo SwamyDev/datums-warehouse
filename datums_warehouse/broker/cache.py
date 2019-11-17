@@ -1,67 +1,39 @@
-import sqlite3
-
-cache_schema = """
-CREATE TABLE last (
-   timestamp INTEGER PRIMARY KEY
-);
-
-CREATE TABLE trades (
-   timestamp REAL PRIMARY KEY,
-   price REAL NOT NULL,
-   volume REAL NOT NULL
-);
-
-INSERT INTO last (timestamp) VALUES (0);
-"""
-
-all_tables = """
-SELECT COUNT(*) FROM sqlite_master WHERE type = 'table'
-"""
-
-insert_trade = """
-INSERT INTO trades (price, volume, timestamp) VALUES (?, ?, ?);
-"""
-query_trades = """
-SELECT price, volume, timestamp
-FROM trades
-where timestamp >= ? and timestamp <= ?
-"""
-update_last = """
-UPDATE last SET timestamp = ?
-"""
-query_last = """
-SELECT timestamp from last
-"""
+import struct
+from pathlib import Path
 
 
 class TradesCache:
+    _TRADE = struct.Struct('<ddd')
+
     def __init__(self, file):
-        self._file = file
-        self._db = None
+        self._file = Path(file)
+        self._last_file = self._file.with_name('cache_last')
 
     def __enter__(self):
-        self._db = sqlite3.connect(self._file, detect_types=sqlite3.PARSE_DECLTYPES)
-        num_tables, = self._db.execute(all_tables).fetchone()
-        if num_tables == 0:
-            self._db.executescript(cache_schema)
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self._db.commit()
-        self._db.close()
+        pass
 
     def update(self, trades, last):
-        for trade in trades:
-            try:
-                self._db.execute(insert_trade, trade)
-            except sqlite3.IntegrityError:
-                print(trade)
-        self._db.execute(update_last, [last])
-        self._db.commit()
+        with open(self._file, mode='ab') as file:
+            for trade in trades:
+                file.write(self._TRADE.pack(*trade))
+
+        with open(self._last_file, mode='w') as file:
+            file.write(str(last))
 
     def get(self, since, until):
-        return self._db.execute(query_trades, (since, until)).fetchall()
+        with open(self._file, mode='rb') as file:
+            return [trade for trade in self._read_trades(file) if since <= trade[2] <= until]
+
+    def _read_trades(self, file):
+        n = self._TRADE.size
+        buf = file.read(n)
+        while buf:
+            yield self._TRADE.unpack(buf)
+            buf = file.read(n)
 
     def last_timestamp(self):
-        last, = self._db.execute(query_last).fetchone()
-        return last
+        with open(self._last_file, mode='r') as file:
+            return int(file.read())

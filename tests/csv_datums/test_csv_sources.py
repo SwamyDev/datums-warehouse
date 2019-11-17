@@ -2,7 +2,8 @@ import pytest
 
 import datums_warehouse.broker.source as module_under_test
 from datums_warehouse.broker.datums import CsvDatums
-from datums_warehouse.broker.source import KrakenSource, to_nano_sec, LEDGER_FREQUENCY, KrakenServerTime
+from datums_warehouse.broker.source import KrakenSource, to_nano_sec, LEDGER_FREQUENCY, KrakenServerTime, \
+    InvalidFormatError, ResponseError
 
 
 class GetRequest:
@@ -19,10 +20,13 @@ class GetRequest:
 
 class GetResponse:
     def __init__(self, json=None):
-        self._json = json or {'result': {'pair': [[]], 'last': str(to_nano_sec(1559347200 * 2))}}
-
+        self._json = make_default_json_response() if json is None else json
     def json(self):
         return self._json
+
+
+def make_default_json_response():
+    return {'result': {'pair': [[]], 'last': str(to_nano_sec(1559347200 * 2))}, 'error': []}
 
 
 class AdaptedData:
@@ -147,10 +151,13 @@ def server_time(monkeypatch, source_interval):
 
 @pytest.fixture
 def make_json(server_time, source_interval):
-    def factory(results, last=None):
+    def factory(results, last=None, with_error=None):
+        res = make_default_json_response()
+        res['result'] = results
+        res['error'] = with_error or []
         last = last or to_nano_sec(server_time.current_time + source_interval + 1)
-        results['last'] = str(last)
-        return {'result': results}
+        res['result']['last'] = str(last)
+        return res
 
     return factory
 
@@ -169,6 +176,17 @@ class TestKrakenSource:
         source.query(since=1559347200)
         assert requests.received_get == make_get("https://api.kraken.com/0/public/Trades", pair="xbtusd",
                                                  since=1559347200000000000)
+
+    @pytest.mark.parametrize("invalid", [dict(), dict(result={'pair': []}), dict(error=[])])
+    def test_invalid_kraken_api_format(self, requests, source, invalid):
+        requests.set_get_response(json=invalid)
+        with pytest.raises(InvalidFormatError):
+            source.query(since=1559347200)
+
+    def test_error_in_response(self, requests, source, make_json):
+        requests.set_get_response(json=make_json({'pair': [['data']]}, with_error=['some error']))
+        with pytest.raises(ResponseError):
+            source.query(since=1559347200)
 
     def test_kraken_source_returns_validated_and_adapted_data(self, source, source_interval, requests, validation,
                                                               make_json):

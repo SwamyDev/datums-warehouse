@@ -5,7 +5,7 @@ from datums_warehouse.broker.cache import TradesCache
 
 @pytest.fixture
 def cache_file(tmp_path):
-    return tmp_path / 'cache.sqlite'
+    return tmp_path / 'cache'
 
 
 @pytest.fixture
