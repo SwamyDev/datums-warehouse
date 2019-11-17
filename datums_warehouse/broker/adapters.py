@@ -20,7 +20,7 @@ class KrakenAdapter:
             return csv
 
         for itv in self._chunked_by_interval(trades):
-            ps, vs, ts = self._transpose([[float(p), float(v), int(t)] for p, v, t, _, _, _ in itv])
+            ps, vs, ts = self._transpose([[float(p), float(v), int(t)] for p, v, t in itv])
             csv.append(self._make_line(ps, ts, vs))
         return csv
 

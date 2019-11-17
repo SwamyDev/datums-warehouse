@@ -32,14 +32,14 @@ def test_empty_data(adapter):
 
 @pytest.mark.parametrize("price,volume,time", [(1.0, 10.0, 0), (2.0, 15.0, 1)])
 def test_single_entry_for_interval(adapter, price, volume, time):
-    assert adapter(trades(trade(price, volume, time, type='s', mode='l', misc=""),
+    assert adapter(trades(trade(price, volume, time),
                           trade(2.0, 10.0, 61.0))) == \
            "timestamp,open,high,low,close,vwap,volume,count\n" \
            f"0,{price},{price},{price},{price},{float(price)},{volume},1"
 
 
-def trade(price, volume, time, type='s', mode='l', misc=''):
-    return [price, volume, time, type, mode, misc]
+def trade(price, volume, time):
+    return [price, volume, time]
 
 
 def trades(*entries):

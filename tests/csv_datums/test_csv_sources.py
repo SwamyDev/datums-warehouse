@@ -21,12 +21,13 @@ class GetRequest:
 class GetResponse:
     def __init__(self, json=None):
         self._json = make_default_json_response() if json is None else json
+
     def json(self):
         return self._json
 
 
 def make_default_json_response():
-    return {'result': {'pair': [[]], 'last': str(to_nano_sec(1559347200 * 2))}, 'error': []}
+    return {'result': {'pair': [[0, 0, 0, 0, 0, 0]], 'last': str(to_nano_sec(1559347200 * 2))}, 'error': []}
 
 
 class AdaptedData:
@@ -170,6 +171,10 @@ def csv_datums_from(adapted):
     return CsvDatums(adapted.interval, adapted)
 
 
+def expand_to_pair(*values):
+    return [[v, v, 1559347200, v, v, v] for v in values]
+
+
 @pytest.mark.usefixtures("server_time")
 class TestKrakenSource:
     def test_kraken_source_builds_correct_url(self, source, requests):
@@ -190,8 +195,8 @@ class TestKrakenSource:
 
     def test_kraken_source_returns_validated_and_adapted_data(self, source, source_interval, requests, validation,
                                                               make_json):
-        requests.set_get_response(json=make_json({'pair': [['data']]}))
-        adapted = AdaptedData(trades=[['data']], with_interval=source_interval)
+        requests.set_get_response(json=make_json({'pair': expand_to_pair(1)}))
+        adapted = AdaptedData(trades=[[1, 1, 1559347200]], with_interval=source_interval)
         assert source.query(since=1559347200) == csv_datums_from(adapted)
         assert validation.data == csv_datums_from(adapted)
 
@@ -199,22 +204,23 @@ class TestKrakenSource:
                                                                        server_time, make_json):
         server_time.set_current_time(1559347200 + source_interval * 3 * 60 + 10)
         requests.set_get_responses(
-            make_json({'pair': [1]}, last=to_nano_sec(1559347200 + source_interval * 60)),
-            make_json({'pair': [2]}, last=to_nano_sec(1559347200 + source_interval * 1.5 * 60)),
-            make_json({'pair': [3]}, last=to_nano_sec(1559347200 + source_interval * 3 * 60)),
-            make_json({'pair': [4]}, last=to_nano_sec(1559347200 + source_interval * 3 * 60 + 1)),
+            make_json({'pair': expand_to_pair(1)}, last=to_nano_sec(1559347200 + source_interval * 60)),
+            make_json({'pair': expand_to_pair(2)}, last=to_nano_sec(1559347200 + source_interval * 1.5 * 60)),
+            make_json({'pair': expand_to_pair(3)}, last=to_nano_sec(1559347200 + source_interval * 3 * 60)),
+            make_json({'pair': expand_to_pair(4)}, last=to_nano_sec(1559347200 + source_interval * 3 * 60 + 1)),
         )
 
-        adapted = AdaptedData(trades=[1, 2, 3], with_interval=source_interval)
+        adapted = AdaptedData(trades=[[1, 1, 1559347200], [2, 2, 1559347200], [3, 3, 1559347200]],
+                              with_interval=source_interval)
         assert source.query(since=1559347200) == csv_datums_from(adapted)
 
     def test_subsequent_queries_are_paused_with_frequency(self, source, source_interval, requests, server_time,
                                                           local_time, make_json):
         server_time.set_current_time(1559347200 + source_interval * 2 * 60 + 10)
         requests.set_get_responses(
-            make_json({'pair': [1]}, last=to_nano_sec(1559347200 + source_interval * 60)),
-            make_json({'pair': [2]}, last=to_nano_sec(1559347200 + source_interval * 2.5 * 60)),
-            make_json({'pair': [3]}, last=to_nano_sec(1559347200 + source_interval * 3 * 60)),
+            make_json({'pair': expand_to_pair(1)}, last=to_nano_sec(1559347200 + source_interval * 60)),
+            make_json({'pair': expand_to_pair(2)}, last=to_nano_sec(1559347200 + source_interval * 2.5 * 60)),
+            make_json({'pair': expand_to_pair(3)}, last=to_nano_sec(1559347200 + source_interval * 3 * 60)),
         )
 
         source.query(since=1559347200)
@@ -224,11 +230,11 @@ class TestKrakenSource:
                                                             local_time, make_json):
         server_time.set_current_time(1559347200 + source_interval * 2 * 60 + 10)
         requests.set_get_responses(
-            make_json({'pair': [[1, 0, 1559347201]]},
+            make_json({'pair': [[1, 0, 1559347201, None, None, None]]},
                       last=to_nano_sec(1559347200 + source_interval * 60)),
-            make_json({'pair': [[2, 0, 1559347200 + source_interval + 10]]},
+            make_json({'pair': [[2, 0, 1559347200 + source_interval + 10, None, None, None]]},
                       last=to_nano_sec(1559347200 + source_interval * 2.5 * 60)),
-            make_json({'pair': [[3, 0, 1559347200 + source_interval * 2]]},
+            make_json({'pair': [[3, 0, 1559347200 + source_interval * 2, None, None, None]]},
                       last=to_nano_sec(1559347200 + source_interval * 3 * 60)),
         )
 
@@ -241,8 +247,8 @@ class TestKrakenSource:
                                                                    make_json):
         server_time.set_current_time(1559347200 + source_interval * 2 * 60 + 10)
         requests.set_get_responses(
-            make_json({'pair': [1]}, last=to_nano_sec(1559347200 + source_interval * 60)),
-            make_json({'pair': [2]}, last=to_nano_sec(1559347200 + source_interval * 2.5 * 60))
+            make_json({'pair': expand_to_pair(1)}, last=to_nano_sec(1559347200 + source_interval * 60)),
+            make_json({'pair': expand_to_pair(2)}, last=to_nano_sec(1559347200 + source_interval * 2.5 * 60))
         )
 
         source.query(since=1559347200)
@@ -252,13 +258,16 @@ class TestKrakenSource:
     def test_stop_queries_after_configured_max_amount(self, source, source_interval, requests, server_time, make_json):
         server_time.set_current_time(1559347200 + source_interval * 3 * 60 + 10)
         requests.set_get_responses(
-            make_json({'pair': [1, 2, 3, 4, 5, 6]}, last=to_nano_sec(1559347200 + source_interval * 60)),
-            make_json({'pair': [7, 8, 9, 10, 11, 12]}, last=to_nano_sec(1559347200 + source_interval * 2.5 * 60)),
-            make_json({'pair': [13, 14]}, last=to_nano_sec(1559347200 + source_interval * 3 * 60)),
+            make_json({'pair': expand_to_pair(1, 2, 3, 4, 5, 6)},
+                      last=to_nano_sec(1559347200 + source_interval * 60)),
+            make_json({'pair': expand_to_pair(7, 8, 9, 10, 11, 12)},
+                      last=to_nano_sec(1559347200 + source_interval * 2.5 * 60)),
+            make_json({'pair': expand_to_pair(13, 14)}, last=to_nano_sec(1559347200 + source_interval * 3 * 60)),
         )
 
-        adapted = AdaptedData(trades=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
-                              with_interval=source_interval)
+        adapted = AdaptedData(
+            trades=[[p, v, t] for p, v, t, _, _, _ in expand_to_pair(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)],
+            with_interval=source_interval)
         assert source.query(since=1559347200) == csv_datums_from(adapted)
 
 

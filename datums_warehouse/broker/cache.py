@@ -24,6 +24,9 @@ class TradesCache:
             file.write(str(last))
 
     def get(self, since, until):
+        if not self._file.exists():
+            return []
+
         with open(self._file, mode='rb') as file:
             return [trade for trade in self._read_trades(file) if since <= trade[2] <= until]
 
@@ -31,9 +34,12 @@ class TradesCache:
         n = self._TRADE.size
         buf = file.read(n)
         while buf:
-            yield self._TRADE.unpack(buf)
+            yield list(self._TRADE.unpack(buf))
             buf = file.read(n)
 
     def last_timestamp(self):
+        if not self._file.exists():
+            return 0
+
         with open(self._last_file, mode='r') as file:
             return int(file.read())
