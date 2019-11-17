@@ -50,7 +50,7 @@ class KrakenTrades:
             len_results = get_len(res)
             logger.info(f" <<< received total: {len_results}")
 
-        return res
+        return get_trades(res)
 
     def _get_cached(self, since, until):
         if not self._cache.exists():

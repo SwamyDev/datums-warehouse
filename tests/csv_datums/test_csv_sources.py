@@ -30,15 +30,15 @@ def make_default_json_response():
 
 
 class AdaptedData:
-    def __init__(self, json, with_interval):
-        self.json = json
+    def __init__(self, trades, with_interval):
+        self.trades = trades
         self.interval = with_interval
 
     def __repr__(self):
-        return f"Adapted(json={self.json}, with_interval={self.interval})"
+        return f"Adapted(trades={self.trades}, with_interval={self.interval})"
 
     def __eq__(self, other):
-        return self.json == other.json and self.interval == other.interval
+        return self.trades == other.trades and self.interval == other.interval
 
 
 class RequestStub:
@@ -191,7 +191,7 @@ class TestKrakenSource:
     def test_kraken_source_returns_validated_and_adapted_data(self, source, source_interval, requests, validation,
                                                               make_json):
         requests.set_get_response(json=make_json({'pair': [['data']]}))
-        adapted = AdaptedData(json=make_json({'pair': [['data']]}), with_interval=source_interval)
+        adapted = AdaptedData(trades=[['data']], with_interval=source_interval)
         assert source.query(since=1559347200) == csv_datums_from(adapted)
         assert validation.data == csv_datums_from(adapted)
 
@@ -205,9 +205,7 @@ class TestKrakenSource:
             make_json({'pair': [4]}, last=to_nano_sec(1559347200 + source_interval * 3 * 60 + 1)),
         )
 
-        adapted = AdaptedData(
-            json=make_json({'pair': [1, 2, 3]}, last=to_nano_sec(1559347200 + source_interval * 3 * 60)),
-            with_interval=source_interval)
+        adapted = AdaptedData(trades=[1, 2, 3], with_interval=source_interval)
         assert source.query(since=1559347200) == csv_datums_from(adapted)
 
     def test_subsequent_queries_are_paused_with_frequency(self, source, source_interval, requests, server_time,
@@ -259,8 +257,7 @@ class TestKrakenSource:
             make_json({'pair': [13, 14]}, last=to_nano_sec(1559347200 + source_interval * 3 * 60)),
         )
 
-        adapted = AdaptedData(json=make_json({'pair': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]},
-                                             last=to_nano_sec(1559347200 + source_interval * 2.5 * 60)),
+        adapted = AdaptedData(trades=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
                               with_interval=source_interval)
         assert source.query(since=1559347200) == csv_datums_from(adapted)
 
