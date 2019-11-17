@@ -84,7 +84,7 @@ def test_with_real_data(make_adapter):
     assert adapter(get_trades(json.loads(RAW_TRADES))) == EXPECTED_OHLC
 
 
-def test_fin_gaps_in_real_data(make_adapter):
+def test_find_gaps_in_real_data(make_adapter):
     adapter = make_adapter(interval=30)
     import json
     from datums_warehouse.broker.validation import validate

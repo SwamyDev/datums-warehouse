@@ -39,15 +39,18 @@ class TradesCache:
             return [trade for trade in self._read_trades(file, since) if since <= trade[2] <= until]
 
     def _read_trades(self, file, since):
-        buf = file.read(self._HEADER.size)
-        while buf:
-            size, last = self._HEADER.unpack(buf)
+        for size, last in self._read_headers(file):
             if last < since:
                 file.seek(size, io.SEEK_CUR)
             else:
                 raw = zlib.decompress(file.read(size))
                 for cnk in _chunked(raw, self._TRADE.size):
                     yield list(self._TRADE.unpack(cnk))
+
+    def _read_headers(self, file):
+        buf = file.read(self._HEADER.size)
+        while buf:
+            yield self._HEADER.unpack(buf)
             buf = file.read(self._HEADER.size)
 
     def last_timestamp(self):

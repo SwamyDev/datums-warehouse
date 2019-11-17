@@ -250,7 +250,7 @@ class TestKrakenSource:
         source.query(since=1559347200)
         source.query(since=1559347200)
         source.query(since=1559347200)
-        assert local_time.received_sleeps == [LEDGER_FREQUENCY, LEDGER_FREQUENCY]
+        assert len(local_time.received_sleeps) == 2
 
     def test_subsequent_queries_retrieve_since_the_last_time_stamp(self, source, source_interval, requests, server_time,
                                                                    make_json):
