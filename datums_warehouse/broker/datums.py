@@ -8,3 +8,7 @@ class CsvDatums:
 
     def __eq__(self, other):
         return self.interval == other.interval and self.csv == other.csv
+
+
+def floor_to_interval(timestamp, interval):
+    return int(timestamp - (timestamp % interval))

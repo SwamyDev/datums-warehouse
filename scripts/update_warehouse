@@ -1,0 +1,26 @@
+#!/usr/bin/env python
+import json
+import logging
+
+import click
+
+from datums_warehouse.broker.warehouse import Warehouse
+
+
+@click.command()
+@click.argument('config', type=click.File('r'))
+@click.option('--log-level', type=str, default='warning')
+def update_warehouse(config, log_level):
+    """Update the warehouse and its packets specified in the given config file"""
+    logging.basicConfig(level=getattr(logging, log_level.upper()))
+    cfg = json.load(config)
+    with open(cfg['WAREHOUSE'], mode='r') as wc:
+        warehouse = Warehouse(json.load(wc))
+    pairs = cfg['PAIRS']
+    pairs = warehouse.all_packets() if pairs == "ALL" else pairs
+    for p in pairs:
+        warehouse.update(p)
+
+
+if __name__ == "__main__":
+    update_warehouse()

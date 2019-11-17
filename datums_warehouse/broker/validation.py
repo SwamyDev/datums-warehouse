@@ -12,6 +12,7 @@ def validate(datums, exclude_outliers=None, z_score_threshold=10):
     _check_elements(df, 'missing', df.isnull())
     _check_elements(df, 'outlier', _make_outlier_mask(df, exclude_outliers or [], z_score_threshold))
     _check_index_interval(df, datums.interval)
+    return datums
 
 
 def _check_elements(df, label, elements):
@@ -48,7 +49,7 @@ def _make_outlier_mask(df, exclude, threshold):
 
 def _check_index_interval(df, interval):
     diff = df.timestamp.values[1:] - df.timestamp.values[:-1]
-    lines = _indices_to_lines(np.where(diff != interval)[0])
+    lines = _indices_to_lines(np.where(diff != interval * 60)[0])
     if len(lines) > 0:
         raise DataError(f"gap in the time series found at lines {', '.join(lines)}")
 

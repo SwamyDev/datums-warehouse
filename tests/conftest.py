@@ -38,7 +38,7 @@ def valid_datums(warehouse_cfg):
 
 
 def add_csv_and_range(cfg):
-    lines = [f"{t},{t + 1 % 10},{t + 2 % 10}" for t in range(TEST_RANGE.min, TEST_RANGE.max, cfg['interval'])]
+    lines = [f"{t},{t + 1 % 10},{t + 2 % 10}" for t in range(TEST_RANGE.min, TEST_RANGE.max, cfg['interval'] * 60)]
     cfg['csv'] = "timestamp,c1,c2\n" + "\n".join(lines) + "\n"
     cfg['range'] = TEST_RANGE
     return cfg
