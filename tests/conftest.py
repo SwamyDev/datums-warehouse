@@ -29,7 +29,8 @@ def credentials(tmp_path):
 @pytest.fixture
 def warehouse_cfg(tmp_path):
     return {'TEST_SYM/30': {'storage': str(tmp_path / "csv"), 'interval': 30, 'pair': 'TEST_SYM'},
-            'INVALID_SYM/5': {'storage': str(tmp_path / "csv"), 'interval': 5, 'pair': 'INVALID_SYM'}}
+            'INVALID_SYM/5': {'storage': str(tmp_path / "csv"), 'interval': 5, 'pair': 'INVALID_SYM',
+                              "exclude_outliers": ["volume", "count"], "z_score_threshold": 20}}
 
 
 @pytest.fixture

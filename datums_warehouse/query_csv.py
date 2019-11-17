@@ -4,7 +4,7 @@ from pathlib import Path
 from flask import Blueprint, current_app, request, jsonify
 from werkzeug.security import check_password_hash
 
-from datums_warehouse.broker.validation import DataError
+from datums_warehouse.broker.validation import DataError, validate
 from datums_warehouse.broker.warehouse import MissingPacketError
 from datums_warehouse.db import get_warehouse
 
@@ -58,8 +58,15 @@ def query_symbols_range(sym, interval, since, until):
 
 
 def _retrieve_symbols(sym, interval, since=None, until=None):
+    warehouse = get_warehouse()
+    pkt_id = f"{sym}/{interval}"
     try:
-        datums = get_warehouse().retrieve(f"{sym}/{interval}", since, until)
-    except (MissingPacketError, DataError) as e:
-        return jsonify({"csv": None, "error": str(e)}), 200
+        datums = warehouse.retrieve(pkt_id, since, until)
+    except MissingPacketError as e:
+        return jsonify({"csv": None, 'error': str(e)}), 200
+
+    try:
+        validate(datums, warehouse.get_exclude_outliers_for(pkt_id), warehouse.get_z_score_threshold_for(pkt_id))
+    except DataError as e:
+        return jsonify({"csv": datums.csv, "warning": str(e)}), 200
     return jsonify({"csv": datums.csv}), 200

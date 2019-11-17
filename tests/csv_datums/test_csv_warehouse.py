@@ -168,13 +168,6 @@ def test_warehouse_retrieves_specified_packet_range():
                                                                                        with_until=1500001000)
 
 
-def test_warehouse_validates_packet_with_specified_config(validator):
-    warehouse = Warehouse({'packet_id': {'storage': "some/directory", 'interval': 30, 'pair': 'SMNPAR',
-                                         'exclude_outliers': ['vwap'], 'z_score_threshold': 5}})
-    datums = warehouse.retrieve('packet_id')
-    assert validator.received == dict(datums=datums, exclude_outliers=['vwap'], z_score_threshold=5)
-
-
 @pytest.mark.parametrize('config,packets', [({}, set()),
                                             ({'packet_id': {'storage': "some/directory", 'interval': 30,
                                                             'pair': 'SMNPAR'},
