@@ -71,29 +71,10 @@ def get_last(trades):
     return int(trades['result']['last'])
 
 
-def get_len(trades):
-    if trades is None:
-        return 0
-    trades = get_trades(trades)
-    return len(trades)
-
-
 def get_trades(res):
     pair = get_pair(res)
     pair_data = res['result'][pair]
     return [[p, v, t] for p, v, t, _, _, _m in pair_data]
-
-
-def combine_trades(lhs, rhs):
-    if lhs is None:
-        return rhs
-    if rhs is None:
-        return lhs
-
-    lhs['result']['last'] = str(get_last(rhs))
-    pair = get_pair(lhs)
-    lhs['result'][pair] += rhs['result'][pair]
-    return lhs
 
 
 def get_pair(trades):
