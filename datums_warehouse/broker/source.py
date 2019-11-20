@@ -41,7 +41,7 @@ class KrakenTrades:
     def get(self, since, until):
         len_results = 0
         with TradesCache(self._cache_file) as cache:
-            while self._needs_to_update_until(cache, until) and len_results < self._max_results:
+            while self._needs_to_update(cache, until) and len_results < self._max_results:
                 trades = self._update_cache_with_trades(cache, from_ts=cache.last_timestamp() or to_nano_sec(since))
                 len_results += len(trades)
                 logger.info(f" <<< received total: {len_results}")
@@ -56,7 +56,7 @@ class KrakenTrades:
         return trades
 
     @staticmethod
-    def _needs_to_update_until(cache, until):
+    def _needs_to_update(cache, until):
         return cache.last_timestamp() < to_nano_sec(until)
 
     def _query_remote_trades(self, since):
@@ -97,8 +97,8 @@ class KrakenSource:
 
     def query(self, since, exclude_outliers=None, z_score_threshold=10):
         last_itv = floor_to_interval(self._server_time.now(), self._interval * 60)
-        res = self._trades.get(since, last_itv)
-        datums = CsvDatums(self._interval, self._adapter(res))
+        trades = self._trades.get(since, last_itv)
+        datums = CsvDatums(self._interval, self._adapter(trades))
         try:
             validate(datums, exclude_outliers, z_score_threshold)
         except DataError as e:
