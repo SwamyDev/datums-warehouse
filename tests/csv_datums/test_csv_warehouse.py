@@ -127,23 +127,6 @@ def source(monkeypatch):
     return s
 
 
-class ValidatorSpy:
-    def __init__(self):
-        self.received = None
-
-    def __call__(self, datums, exclude_outliers=None, z_score_threshold=10):
-        self.received = dict(datums=datums, exclude_outliers=exclude_outliers, z_score_threshold=z_score_threshold)
-        return datums
-
-
-@pytest.fixture(autouse=True)
-def validator(monkeypatch):
-    import datums_warehouse.broker.warehouse as module_under_test
-    s = ValidatorSpy()
-    monkeypatch.setattr(module_under_test, 'validate', s)
-    return s
-
-
 def test_warehouse_raises_an_error_when_accessing_non_existent_packet():
     warehouse = Warehouse({})
     with pytest.raises(MissingPacketError):
@@ -166,13 +149,6 @@ def test_warehouse_retrieves_specified_packet_range():
                                                                                        with_interval=30,
                                                                                        with_since=1500000000,
                                                                                        with_until=1500001000)
-
-
-def test_warehouse_validates_packet_with_specified_config(validator):
-    warehouse = Warehouse({'packet_id': {'storage': "some/directory", 'interval': 30, 'pair': 'SMNPAR',
-                                         'exclude_outliers': ['vwap'], 'z_score_threshold': 5}})
-    datums = warehouse.retrieve('packet_id')
-    assert validator.received == dict(datums=datums, exclude_outliers=['vwap'], z_score_threshold=5)
 
 
 @pytest.mark.parametrize('config,packets', [({}, set()),

@@ -36,6 +36,22 @@ def ranges(request, fst_range):
     return namedtuple('RangeCpy', ['min', 'max'])(fst_range.min + request.param[0], fst_range.max + request.param[0])
 
 
+@pytest.fixture
+def validation(monkeypatch):
+    import datums_warehouse.query_csv as mut
+
+    class _Spy:
+        def __init__(self):
+            self.parameters = None
+
+        def __call__(self, datums, exclude_outliers=None, z_score_threshold=10):
+            self.parameters = (exclude_outliers, z_score_threshold)
+
+    s = _Spy()
+    monkeypatch.setattr(mut, 'validate', s)
+    return s
+
+
 def test_request_data_range(query, fst_datum, fst_range, ranges):
     csv = query.symbol(*parameters(fst_datum), since=ranges.min, until=ranges.max).json['csv']
     assert csv == slice_csv(fst_datum['csv'], start=max(ranges.min, fst_range.min), stop=min(ranges.max, fst_range.max))
@@ -58,4 +74,12 @@ def test_request_only_since(query, fst_datum, fst_range):
 
 
 def test_retrieving_invalid_csv_data(query, fragmented_datums):
-    assert 'gap' in query.symbol(*parameters(first(fragmented_datums))).json['error']
+    assert 'gap' in query.symbol(*parameters(first(fragmented_datums))).json['warning']
+
+
+def test_validate_with_configures_parameters(query, fragmented_datums, warehouse_cfg, validation):
+    query.symbol(*parameters(first(fragmented_datums)))
+    assert validation.parameters == (
+        warehouse_cfg['INVALID_SYM/5']['exclude_outliers'],
+        warehouse_cfg['INVALID_SYM/5']['z_score_threshold']
+    )

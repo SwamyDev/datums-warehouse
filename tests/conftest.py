@@ -29,7 +29,8 @@ def credentials(tmp_path):
 @pytest.fixture
 def warehouse_cfg(tmp_path):
     return {'TEST_SYM/30': {'storage': str(tmp_path / "csv"), 'interval': 30, 'pair': 'TEST_SYM'},
-            'INVALID_SYM/5': {'storage': str(tmp_path / "csv"), 'interval': 5, 'pair': 'INVALID_SYM'}}
+            'INVALID_SYM/5': {'storage': str(tmp_path / "csv"), 'interval': 5, 'pair': 'INVALID_SYM',
+                              "exclude_outliers": ["volume", "count"], "z_score_threshold": 20}}
 
 
 @pytest.fixture
@@ -69,7 +70,7 @@ def app(tmp_path, credentials, write_csv, warehouse_cfg):
     cfg_file = tmp_path / "warehouse.json"
     with open(cfg_file, mode='w') as f:
         json.dump(warehouse_cfg, f)
-    yield create_app({'TESTING': True, 'CREDENTIALS': credentials, 'WAREHOUSE': cfg_file})
+    yield create_app({'TESTING': True, 'CREDENTIALS': credentials, 'WAREHOUSE': cfg_file, 'SECRET_KEY': "dev"})
 
 
 @pytest.fixture
