@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import configparser
 import json
 import logging
 
@@ -6,6 +7,7 @@ import click
 
 from datums_warehouse.broker.warehouse import Warehouse
 
+logger = logging.getLogger(__package__)
 
 @click.command()
 @click.argument('config', type=click.File('r'))
@@ -13,13 +15,16 @@ from datums_warehouse.broker.warehouse import Warehouse
 def update_warehouse(config, log_level):
     """Update the warehouse and its packets specified in the given config file"""
     logging.basicConfig(level=getattr(logging, log_level.upper()))
-    cfg = json.load(config)
-    with open(cfg['WAREHOUSE'], mode='r') as wc:
-        warehouse = Warehouse(json.load(wc))
-    pairs = cfg['PAIRS']
-    pairs = warehouse.all_packets() if pairs == "ALL" else pairs
-    for p in pairs:
-        warehouse.update(p)
+    cfg = configparser.ConfigParser()
+    cfg.read_file(config, config.name)
+    for sources in [s for s in cfg if s != cfg.default_section]:
+        logger.info(f"updating sources: {sources}")
+        with open(cfg[sources]['Warehouse'], mode='r') as wc:
+            warehouse = Warehouse(json.load(wc))
+        pairs = cfg[sources]['Pairs']
+        pairs = warehouse.all_packets() if pairs.lower() == "all" else pairs
+        for p in pairs:
+            warehouse.update(p)
 
 
 if __name__ == "__main__":
