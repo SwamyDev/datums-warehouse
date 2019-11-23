@@ -17,10 +17,11 @@ setup(
     long_description_content_type='text/markdown',
     url='https://github.com/SwamyDev/datums-warehouse',
     author='Bernhard Raml',
-    packages=find_packages(include='datums_warehouse'),
+    packages=find_packages(include=['datums_warehouse', 'datums_warehouse.*']),
     include_package_data=True,
     zip_safe=False,
-    install_requires=['flask', 'werkzeug', 'pandas', 'numpy', 'requests'],
+    install_requires=['flask', 'werkzeug', 'pandas', 'numpy', 'requests', 'click', 'uwsgi', 'wheel', 'more_itertools'],
     extras_require={"test": ["pytest", "pytest-cov"]},
-    scripts=['scripts/update_warehouse']
+    scripts=['scripts/update_warehouse'],
+    python_requires='>=3.6'
 )

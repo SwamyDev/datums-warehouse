@@ -1,4 +1,4 @@
-.PHONY: help meta install clean test coverage
+.PHONY: help meta install clean test coverage deploy
 
 TARGET ?=
 ifdef TARGET
@@ -43,3 +43,7 @@ test:
 
 coverage:
 	pytest --cov=datums_warehouse --cov-report term-missing
+
+deploy: meta clean
+	python setup.py bdist_wheel
+	resources/deploy.sh
