@@ -1,6 +1,6 @@
 import base64
+import configparser
 import gzip
-import json
 import random
 from collections import namedtuple
 from contextlib import contextmanager
@@ -29,8 +29,7 @@ def credentials(tmp_path):
 @pytest.fixture
 def warehouse_cfg(tmp_path):
     return {'TEST_SYM/30': {'storage': str(tmp_path / "csv"), 'interval': 30, 'pair': 'TEST_SYM'},
-            'INVALID_SYM/5': {'storage': str(tmp_path / "csv"), 'interval': 5, 'pair': 'INVALID_SYM',
-                              "exclude_outliers": ["volume", "count"], "z_score_threshold": 20}}
+            'INVALID_SYM/5': {'storage': str(tmp_path / "csv"), 'interval': 5, 'pair': 'INVALID_SYM'}}
 
 
 @pytest.fixture
@@ -66,10 +65,16 @@ def write_csv(valid_datums, fragmented_datums):
 
 
 @pytest.fixture
-def app(tmp_path, credentials, write_csv, warehouse_cfg):
-    cfg_file = tmp_path / "warehouse.json"
+def default_validation_cfg():
+    return {"exclude_outliers": "volume,count", "z_score_threshold": 20}
+
+@pytest.fixture
+def app(tmp_path, credentials, write_csv, warehouse_cfg, default_validation_cfg):
+    cfg_file = tmp_path / "warehouse.ini"
+    cfg = configparser.ConfigParser(defaults=default_validation_cfg)
+    cfg.read_dict(warehouse_cfg, "test_warehouse_cfg")
     with open(cfg_file, mode='w') as f:
-        json.dump(warehouse_cfg, f)
+        cfg.write(f)
     yield create_app({'TESTING': True, 'CREDENTIALS': credentials, 'WAREHOUSE': cfg_file, 'SECRET_KEY': "dev"})
 
 

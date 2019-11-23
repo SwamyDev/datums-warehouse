@@ -77,9 +77,9 @@ def test_retrieving_invalid_csv_data(query, fragmented_datums):
     assert 'gap' in query.symbol(*parameters(first(fragmented_datums))).json['warning']
 
 
-def test_validate_with_configures_parameters(query, fragmented_datums, warehouse_cfg, validation):
+def test_validate_with_configures_parameters(query, fragmented_datums, default_validation_cfg, validation):
     query.symbol(*parameters(first(fragmented_datums)))
     assert validation.parameters == (
-        warehouse_cfg['INVALID_SYM/5']['exclude_outliers'],
-        warehouse_cfg['INVALID_SYM/5']['z_score_threshold']
+        default_validation_cfg['exclude_outliers'].split(','),
+        default_validation_cfg['z_score_threshold']
     )

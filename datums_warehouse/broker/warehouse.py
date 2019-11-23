@@ -31,14 +31,17 @@ class Warehouse:
         return self._config[pkt_id].get(self._EXCLUDE_OUTLIERS_KEY, None)
 
     def get_z_score_threshold_for(self, pkt_id):
-        return self._config[pkt_id].get(self._Z_THRESHOLD_KEY, 10)
+        return float(self._config[pkt_id].get(self._Z_THRESHOLD_KEY, 10))
 
     def retrieve(self, pkt_id, since=None, until=None):
         self._validate_packet(pkt_id)
         pkt_cfg = self._config[pkt_id]
         storage = make_storage(pkt_cfg[self._STORAGE_KEY], pkt_cfg[self._PAIR_KEY])
-        datums = storage.get(pkt_cfg[self._INTERVAL_KEY], since, until)
+        datums = storage.get(self._get_interval(pkt_cfg), since, until)
         return datums
+
+    def _get_interval(self, pkt_cfg):
+        return int(pkt_cfg[self._INTERVAL_KEY])
 
     def _validate_packet(self, pkt_id):
         if pkt_id not in self._config:
@@ -50,7 +53,7 @@ class Warehouse:
     def update(self, pkt_id):
         self._validate_packet(pkt_id)
         pkt_cfg = self._config[pkt_id]
-        interval = pkt_cfg[self._INTERVAL_KEY]
+        interval = self._get_interval(pkt_cfg)
         pair = pkt_cfg[self._PAIR_KEY]
         src = make_source(pkt_cfg[self._STORAGE_KEY], pkt_cfg[self._SOURCE_KEY], pair, interval)
         storage = make_storage(pkt_cfg[self._STORAGE_KEY], pair)
@@ -63,7 +66,7 @@ class Warehouse:
         if storage.exists(interval):
             since = storage.last_time_of(interval) + interval
         else:
-            since = pkt_cfg.get(self._START_KEY, 0)
+            since = int(pkt_cfg.get(self._START_KEY, 0))
         return since
 
 
