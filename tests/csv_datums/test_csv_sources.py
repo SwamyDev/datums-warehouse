@@ -311,13 +311,31 @@ class TestKrakenSource:
         )
 
         adapted = AdaptedData(
-            trades=self.take_price_volume_time(),
+            trades=self.take_price_volume_time(expand_to_trades(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)),
             with_interval=source_interval)
         assert source.query(since=START_TIME_S) == csv_datums_from(adapted)
 
     @staticmethod
-    def take_price_volume_time():
-        return [[p, v, t] for p, v, t, _, _, _ in expand_to_trades(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)]
+    def take_price_volume_time(trades):
+        return [[p, v, t] for p, v, t, _, _, _ in trades]
+
+    def test_stop_queries_when_no_new_trades_arrive(self, source, source_interval, requests, server_time, make_json,
+                                                    local_time):
+        server_time.set_current_time(START_TIME_S + source_interval * 3 * 60 + 10)
+        requests.set_get_responses(
+            make_json({'pair': expand_to_trades(1, 2, 3)},
+                      last=to_nano_sec(START_TIME_S + source_interval * 60)),
+            make_json({'pair': expand_to_trades(4, 5, 6)},
+                      last=to_nano_sec(START_TIME_S + source_interval * 2.5 * 60)),
+            make_json({'pair': []}, last=to_nano_sec(START_TIME_S + source_interval * 2.5 * 60)),
+            make_json({'pair': []}, last=to_nano_sec(START_TIME_S + source_interval * 2.5 * 60))
+        )
+
+        adapted = AdaptedData(
+            trades=self.take_price_volume_time(expand_to_trades(1, 2, 3, 4, 5, 6)),
+            with_interval=source_interval)
+        assert source.query(since=START_TIME_S) == csv_datums_from(adapted)
+        assert len(local_time.received_sleeps) == 3
 
     def test_logs_warning_on_invalid_data(self, source, validation, caplog):
         caplog.set_level(logging.WARNING)

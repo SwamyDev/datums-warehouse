@@ -1,5 +1,7 @@
 [run]
 source = datums_warehouse/
+omit =
+    datums_warehouse/wsgi.py
 [report]
 exclude_lines =
     pragma: no cover

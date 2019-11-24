@@ -11,7 +11,7 @@ from datums_warehouse.broker.cache import TradesCache
 from datums_warehouse.broker.datums import CsvDatums, floor_to_interval
 from datums_warehouse.broker.validation import validate, DataError
 
-LEDGER_FREQUENCY = 6
+LEDGER_FREQUENCY = 1
 logger = logging.getLogger(__name__)
 
 
@@ -43,8 +43,13 @@ class KrakenTrades:
         with TradesCache(self._cache_file) as cache:
             while self._needs_to_update(cache, until) and len_results < self._max_results:
                 trades = self._update_cache_with_trades(cache, from_ts=cache.last_timestamp() or to_nano_sec(since))
-                len_results += len(trades)
-                logger.info(f" <<< received total: {len_results}")
+                num_trades = len(trades)
+                if num_trades == 0:
+                    logging.info(f"exhausted trades at: {cache.last_timestamp()}")
+                    break
+                else:
+                    len_results += num_trades
+                    logger.info(f" <<< received total: {len_results}")
 
             return cache.get(since, until)
 
