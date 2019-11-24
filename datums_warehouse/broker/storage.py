@@ -37,7 +37,7 @@ class Storage:
     def _maybe_prepend_existing(self, new_df, itv):
         for prv, file in self._all_of(itv):
             if self._can_concatenate(new_df, prv, itv):
-                new_df = pd.concat([prv, new_df]).drop_duplicates(subset='timestamp') \
+                new_df = pd.concat([prv, new_df]).drop_duplicates(subset='timestamp', keep='last') \
                     .reset_index(drop=True)
                 return new_df, file
         return new_df, None
@@ -61,7 +61,7 @@ class Storage:
         df.to_csv(file, index=False, compression="infer")
         if prv is None:
             logger.info(f"creating new csv storage: {file}")
-        else:
+        elif file != prv:
             prv.unlink()
 
     def last_time_of(self, interval):

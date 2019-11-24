@@ -61,7 +61,7 @@ def test_create_new_file_for_different_frequency(storage, datum_path, make_csv_d
 def test_datums_are_merged_without_duplicates(storage, datum_path, make_csv_datums):
     storage.store(make_csv_datums(1, "timestamp,c1,c2\n0,1,1\n1,2,2\n2,3,3\n"))
     storage.store(make_csv_datums(1, "timestamp,c1,c2\n2,3,4\n3,2,2\n"))
-    assert read_gz(datum_path / "1__0_3.gz") == "timestamp,c1,c2\n0,1,1\n1,2,2\n2,3,3\n3,2,2\n"
+    assert read_gz(datum_path / "1__0_3.gz") == "timestamp,c1,c2\n0,1,1\n1,2,2\n2,3,4\n3,2,2\n"
 
 
 def test_start_new_file_when_there_is_a_gap_in_frequency(storage, datum_path, make_csv_datums):
@@ -97,6 +97,13 @@ def test_delete_old_file_when_appended(storage, datum_path, make_csv_datums):
     storage.store(make_csv_datums(1, "timestamp,c1,c2\n0,1,1\n1,2,2\n2,3,3\n"))
     storage.store(make_csv_datums(1, "timestamp,c1,c2\n2,3,4\n3,2,2\n"))
     assert not (datum_path / "1__0_2.gz").exists()
+
+
+def test_do_not_delete_old_file_when_not_appended(storage, datum_path, make_csv_datums):
+    storage.store(make_csv_datums(1, "timestamp,c1,c2\n0,1,1\n1,2,2\n2,3,3\n"))
+    storage.store(make_csv_datums(1, "timestamp,c1,c2\n2,3,4"))
+    assert (datum_path / "1__0_2.gz").exists()
+    assert read_gz(datum_path / "1__0_2.gz") == "timestamp,c1,c2\n0,1,1\n1,2,2\n2,3,4\n"
 
 
 def test_query_if_store_exists(storage, make_csv_datums):
