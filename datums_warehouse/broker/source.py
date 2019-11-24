@@ -11,7 +11,7 @@ from datums_warehouse.broker.cache import TradesCache
 from datums_warehouse.broker.datums import CsvDatums, floor_to_interval
 from datums_warehouse.broker.validation import validate, DataError
 
-LEDGER_FREQUENCY = 1
+LEDGER_FREQUENCY = 2
 logger = logging.getLogger(__name__)
 
 
