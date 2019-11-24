@@ -22,11 +22,12 @@ class TradesCache:
         pass
 
     def update(self, trades, last):
-        with open(self._file, mode='ab') as file:
-            raw = struct.pack(f'<{len(trades) * 3}d', *flatten(trades))
-            raw = zlib.compress(raw)
-            file.write(self._HEADER.pack(len(raw), int(math.ceil(trades[-1][2]))))
-            file.write(raw)
+        if len(trades) > 0:
+            with open(self._file, mode='ab') as file:
+                raw = struct.pack(f'<{len(trades) * 3}d', *flatten(trades))
+                raw = zlib.compress(raw)
+                file.write(self._HEADER.pack(len(raw), int(math.ceil(trades[-1][2]))))
+                file.write(raw)
 
         with open(self._last_file, mode='w') as file:
             file.write(str(last))
@@ -54,7 +55,7 @@ class TradesCache:
             buf = file.read(self._HEADER.size)
 
     def last_timestamp(self):
-        if not self._file.exists():
+        if not self._last_file.exists():
             return 0
 
         with open(self._last_file, mode='r') as file:

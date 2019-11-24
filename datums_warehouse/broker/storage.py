@@ -31,7 +31,7 @@ class Storage:
             raise InvalidDatumError(f"the datum values are empty")
         df = pd.read_csv(StringIO(csv))
         if df.empty:
-            raise InvalidDatumError(f"the datum string has now values:\n {csv}")
+            raise InvalidDatumError(f"the datum string has no values:\n {csv}")
         return df
 
     def _maybe_prepend_existing(self, new_df, itv):

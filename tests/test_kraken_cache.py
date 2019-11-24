@@ -23,6 +23,12 @@ def test_cache_does_not_exist_yet(cache):
     assert cache.last_timestamp() == 0
 
 
+def test_update_with_empty_data(cache):
+    cache.update([], seconds_to_ns(1500000002))
+    assert cache.get(0, 1) == []
+    assert cache.last_timestamp() == seconds_to_ns(1500000002)
+
+
 def test_update_and_query(cache):
     cache.update([
         [10.0, 0.1, 1500000000.0],

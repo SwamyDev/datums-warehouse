@@ -225,6 +225,12 @@ class TestKrakenSource:
         with pytest.raises(ResponseError):
             source.query(since=START_TIME_S)
 
+    def test_receiving_empty_trades(self, source, source_interval, requests, validation, make_json):
+        requests.set_get_response(json=make_json({'pair': []}))
+        adapted = AdaptedData(trades=[], with_interval=source_interval)
+        assert source.query(since=START_TIME_S) == csv_datums_from(adapted)
+        assert validation.data == csv_datums_from(adapted)
+
     def test_kraken_source_returns_validated_and_adapted_data(self, source, source_interval, requests, validation,
                                                               make_json):
         requests.set_get_response(json=make_json({'pair': expand_to_trades(1)}))
