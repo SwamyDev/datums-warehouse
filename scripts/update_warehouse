@@ -23,7 +23,7 @@ def update_warehouse(config, log_level):
         wh_cfg.read(cfg[sources]['Warehouse'])
         warehouse = make_warehouse(wh_cfg)
         pairs = cfg[sources]['Pairs']
-        pairs = warehouse.all_packets() if pairs.lower() == "all" else pairs
+        pairs = warehouse.all_packets() if pairs.lower() == "all" else [p.strip() for p in pairs.split(',')]
         update_pairs(wh_cfg, pairs)
 
 
