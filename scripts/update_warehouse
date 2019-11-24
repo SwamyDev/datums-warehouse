@@ -5,6 +5,7 @@ import logging
 import click
 
 from datums_warehouse.db import make_warehouse
+from datums_warehouse.scripts.update import update_pairs
 
 logger = logging.getLogger(__package__)
 
@@ -23,8 +24,7 @@ def update_warehouse(config, log_level):
         warehouse = make_warehouse(wh_cfg)
         pairs = cfg[sources]['Pairs']
         pairs = warehouse.all_packets() if pairs.lower() == "all" else pairs
-        for p in pairs:
-            warehouse.update(p)
+        update_pairs(warehouse, pairs)
 
 
 if __name__ == "__main__":
