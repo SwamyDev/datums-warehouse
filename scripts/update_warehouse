@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 import configparser
 import logging
+from contextlib import contextmanager
+from pathlib import Path
 
 import click
 
@@ -9,22 +11,41 @@ from datums_warehouse.scripts.update import update_pairs
 
 logger = logging.getLogger(__package__)
 
+
+@contextmanager
+def file_lock(path):
+    file = path / "update_warehouse.lock"
+    if file.exists():
+        raise LockError("another process is already updating the warehouse.")
+    file.touch()
+
+    try:
+        yield
+    finally:
+        file.unlink()
+
+
+class LockError(IOError):
+    pass
+
+
 @click.command()
 @click.argument('config', type=click.File('r'))
 @click.option('--log-level', type=str, default='warning')
 def update_warehouse(config, log_level):
     """Update the warehouse and its packets specified in the given config file"""
     logging.basicConfig(level=getattr(logging, log_level.upper()))
-    cfg = configparser.ConfigParser()
-    cfg.read_file(config, config.name)
-    for sources in [s for s in cfg if s != cfg.default_section]:
-        logger.info(f"updating sources: {sources}")
-        wh_cfg = configparser.ConfigParser()
-        wh_cfg.read(cfg[sources]['Warehouse'])
-        warehouse = make_warehouse(wh_cfg)
-        pairs = cfg[sources]['Pairs']
-        pairs = warehouse.all_packets() if pairs.lower() == "all" else [p.strip() for p in pairs.split(',')]
-        update_pairs(wh_cfg, pairs)
+    with file_lock(Path(config.name).parent):
+        cfg = configparser.ConfigParser()
+        cfg.read_file(config, config.name)
+        for sources in [s for s in cfg if s != cfg.default_section]:
+            logger.info(f"updating sources: {sources}")
+            wh_cfg = configparser.ConfigParser()
+            wh_cfg.read(cfg[sources]['Warehouse'])
+            warehouse = make_warehouse(wh_cfg)
+            pairs = cfg[sources]['Pairs']
+            pairs = warehouse.all_packets() if pairs.lower() == "all" else [p.strip() for p in pairs.split(',')]
+            update_pairs(wh_cfg, pairs)
 
 
 if __name__ == "__main__":
