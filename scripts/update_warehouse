@@ -32,9 +32,13 @@ class LockError(IOError):
 @click.command()
 @click.argument('config', type=click.File('r'))
 @click.option('--log-level', type=str, default='warning')
-def update_warehouse(config, log_level):
+@click.option('--log-file', type=click.Path(dir_okay=False, writable=True), default=None)
+def update_warehouse(config, log_level, log_file):
     """Update the warehouse and its packets specified in the given config file"""
-    logging.basicConfig(level=getattr(logging, log_level.upper()))
+    handlers = []
+    if log_file:
+        handlers.append(logging.FileHandler(log_file))
+    logging.basicConfig(level=getattr(logging, log_level.upper()), handlers=handlers)
     with file_lock(Path(config.name).parent):
         cfg = configparser.ConfigParser()
         cfg.read_file(config, config.name)
